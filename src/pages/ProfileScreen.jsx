@@ -1,17 +1,10 @@
-import { useNavigate } from "react-router-dom";
-import { getStaff, clearStaff } from "@/lib/staffSession";
+import { useAuth } from "@/lib/AuthContext"; // AuthContext eklendi
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { LogOut, UserRound } from "lucide-react";
 
 export default function ProfileScreen() {
-  const navigate = useNavigate();
-  const staff = getStaff();
-
-  const handleSignOut = () => {
-    clearStaff();
-    navigate("/login", { replace: true });
-  };
+  const { user, logout } = useAuth(); // AuthContext'ten çekiliyor
 
   return (
     <AppLayout>
@@ -27,15 +20,15 @@ export default function ProfileScreen() {
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary">
                   <span className="text-xl font-bold">
-                    {(staff?.name || "?").charAt(0).toUpperCase()}
+                    {(user?.name || "?").charAt(0).toUpperCase()}
                   </span>
                 </div>
                 <div className="min-w-0">
                   <p className="truncate text-lg font-semibold">
-                    {staff?.name || "İsimsiz Kullanıcı"}
+                    {user?.name || "İsimsiz Kullanıcı"}
                   </p>
                   <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <UserRound className="h-3.5 w-3.5" /> Rol: {staff?.role || "—"}
+                    <UserRound className="h-3.5 w-3.5" /> Rol: {user?.role || "—"}
                   </p>
                 </div>
               </div>
@@ -43,7 +36,7 @@ export default function ProfileScreen() {
 
             <div className="mt-4">
               <Button
-                onClick={handleSignOut}
+                onClick={() => logout()} // Artık tek bir tuşla her şey sıfırlanıyor
                 variant="destructive"
                 className="h-12 w-full select-none justify-center gap-2 rounded-xl"
               >
