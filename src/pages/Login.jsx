@@ -78,7 +78,7 @@ export default function Login() {
           </div>
 
           <div className="space-y-2">
-            <Label>Rol</Label>
+            <div className="text-sm font-medium leading-none">Rol</div>
             <div className="grid grid-cols-3 gap-2">
               {ROLES.map((r) => {
                 const Icon = r.icon;
