@@ -1,36 +1,48 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { setStaff, getStaff, ROLE_HOME } from "@/lib/staffSession";
+import { useAuth } from "@/lib/AuthContext"; // Sistemin kalbi eklendi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Anchor, Loader2, UtensilsCrossed, ChefHat, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Rolleri sistemin anlayacağı (kasa, mutfak, garson) value değerleriyle eşleştirdik
 const ROLES = [
-  { id: "Garson", icon: UtensilsCrossed, desc: "Sipariş al ve mutfağa gönder" },
-  { id: "Mutfak", icon: ChefHat, desc: "Sipariş takip ve hazırlık" },
-  { id: "Kasiyer", icon: Calculator, desc: "Hesap kapatma ve kasa" },
+  { id: "Garson", value: "garson", path: "/orders", icon: UtensilsCrossed, desc: "Sipariş al ve mutfağa gönder" },
+  { id: "Mutfak", value: "mutfak", path: "/kitchen", icon: ChefHat, desc: "Sipariş takip ve hazırlık" },
+  { id: "Kasiyer", value: "kasa", path: "/cashier", icon: Calculator, desc: "Hesap kapatma ve kasa" },
 ];
 
 export default function Login() {
   const navigate = useNavigate();
+  const { user, login } = useAuth(); // AuthContext'ten veri okuma ve yazma fonksiyonları alındı
+  
   const [name, setName] = useState("");
   const [role, setRole] = useState("Garson");
   const [loading, setLoading] = useState(false);
 
   // Zaten giriş yapılmışsa rol ana ekranına dön
   useEffect(() => {
-    const s = getStaff();
-    if (s) navigate(ROLE_HOME[s.role] || "/", { replace: true });
-  }, [navigate]);
+    if (user) {
+      const activeRole = ROLES.find(r => r.value === user.role);
+      if (activeRole) navigate(activeRole.path, { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
     setLoading(true);
-    setStaff(name, role);
-    setTimeout(() => navigate(ROLE_HOME[role] || "/", { replace: true }), 120);
+
+    // Seçilen rolün sistem (value) karşılığını ve gideceği sayfayı bul
+    const selectedRoleData = ROLES.find(r => r.id === role);
+    
+    // AuthContext'e giriş bilgisini gönder (Hem hafızaya yazar hem sistemi uyarır)
+    login({ name: name, role: selectedRoleData.value });
+
+    // Kullanıcıyı yetkili olduğu ekrana yönlendir
+    setTimeout(() => navigate(selectedRoleData.path, { replace: true }), 120);
   };
 
   return (
