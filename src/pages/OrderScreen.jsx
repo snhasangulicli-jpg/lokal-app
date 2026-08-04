@@ -1,15 +1,18 @@
 import { useEffect, useState, useCallback } from "react";
-import { getStaff } from "@/lib/staff";
+import { useAuth } from "@/lib/AuthContext"; // Silinen staff.js yerine sistemi dinler
 import AppLayout from "@/components/AppLayout";
 import CartBar from "@/components/CartBar";
 import VariationModal from "@/components/VariationModal";
 import { CATEGORIES, detectMenuType, KITCHEN_STAGES, isItemSoldOut, getCheckedStages } from "@/lib/menu";
+import { getMenuItems } from "@/lib/menuData"; // Menüyü çekmek için eklendi
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Plus, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function OrderScreen() {
   const { toast } = useToast();
+  const { user } = useAuth(); // Giriş yapan garsonun bilgisi buradan geliyor
+  
   const [menu, setMenu] = useState(null);
   const [activeCat, setActiveCat] = useState(CATEGORIES[0].id);
   const [cart, setCart] = useState([]);
@@ -19,12 +22,8 @@ export default function OrderScreen() {
 
   const loadMenu = useCallback(async () => {
     try {
-      const localMenu = localStorage.getItem("app_menu");
-      if (localMenu) {
-        setMenu(JSON.parse(localMenu));
-      } else {
-        setMenu([]);
-      }
+      const fetchedMenu = await getMenuItems();
+      setMenu(fetchedMenu || []);
     } catch (e) {
       console.error("Menü yüklenirken hata oluştu:", e);
       setMenu([]);
@@ -35,7 +34,6 @@ export default function OrderScreen() {
     loadMenu();
   }, [loadMenu]);
 
-  // Mutfak aşama işaretleyince garsona canlı bildirim (periyodik kontrol)
   useEffect(() => {
     const prev = {};
     const checkOrderUpdates = () => {
@@ -49,7 +47,6 @@ export default function OrderScreen() {
           const isCompleted = o.status === "completed";
           const p = prev[o.id];
 
-          // İlk kontrolü kaydet — sayfa yeni açıldığında gereksiz bildirim oluşmasın
           if (!p) {
             prev[o.id] = { checked, completed: isCompleted };
             return;
@@ -162,7 +159,7 @@ export default function OrderScreen() {
         id: Date.now().toString(),
         tableNumber: tableNumber.trim(),
         menuType: detectMenuType(cart),
-        waiterName: getStaff()?.name || "",
+        waiterName: user?.name || "Bilinmeyen Garson", // Kullanıcı adını sistemden alır
         currentStage: 0,
         stageTimestamps: { 0: new Date().toISOString() },
         items: cart.map((c) => ({
@@ -203,7 +200,6 @@ export default function OrderScreen() {
   return (
     <AppLayout>
       <div className="flex h-full flex-col">
-        {/* Category tabs */}
         <div className="border-b border-border bg-card/60">
           <div className="no-scrollbar mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3">
             {CATEGORIES.map((cat) => (
@@ -223,7 +219,6 @@ export default function OrderScreen() {
           </div>
         </div>
 
-        {/* Product grid */}
         <div className="flex-1 overflow-y-auto scrollbar-thin">
           <div className="mx-auto max-w-7xl px-4 py-5 pb-32">
             <h2 className="mb-4 text-lg font-semibold text-muted-foreground">
@@ -247,7 +242,7 @@ export default function OrderScreen() {
                     )}
                   >
                     <div className="flex items-center gap-3">
-                      {item.category === "balik" || item.category === "raki" || item.category === "saraplar" ? (
+                      {item.category === "A la Carte - Balık" || item.category === "Rakı" || item.category === "Şaraplar" ? (
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                           <Waves className="h-5 w-5" />
                         </div>

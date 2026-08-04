@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 
 // Sekmeleri role göre ayarlayabilmek için ayırdık
 const ALL_TABS = {
-  mutfak: { to: "/kitchen", label: "Mutfak", icon: ChefHat, match: "/kitchen" },
-  garson: { to: "/orders", label: "Garson", icon: UtensilsCrossed, match: "/orders" },
+  mutfak: { to: "/", label: "Mutfak", icon: ChefHat, match: "/" },
+  garson: { to: "/order", label: "Garson", icon: UtensilsCrossed, match: "/order" },
   kasa: { to: "/cashier", label: "Kasiyer", icon: Calculator, match: "/cashier" },
 };
 

@@ -8,9 +8,10 @@ import { Anchor, Loader2, UtensilsCrossed, ChefHat, Calculator } from "lucide-re
 import { cn } from "@/lib/utils";
 
 // Rolleri sistemin anlayacağı (kasa, mutfak, garson) value değerleriyle eşleştirdik
+// Orijinal haritanızla (App.jsx) birebir uyumlu yollar:
 const ROLES = [
-  { id: "Garson", value: "garson", path: "/orders", icon: UtensilsCrossed, desc: "Sipariş al ve mutfağa gönder" },
-  { id: "Mutfak", value: "mutfak", path: "/kitchen", icon: ChefHat, desc: "Sipariş takip ve hazırlık" },
+  { id: "Garson", value: "garson", path: "/order", icon: UtensilsCrossed, desc: "Sipariş al ve mutfağa gönder" },
+  { id: "Mutfak", value: "mutfak", path: "/", icon: ChefHat, desc: "Sipariş takip ve hazırlık" },
   { id: "Kasiyer", value: "kasa", path: "/cashier", icon: Calculator, desc: "Hesap kapatma ve kasa" },
 ];
 
