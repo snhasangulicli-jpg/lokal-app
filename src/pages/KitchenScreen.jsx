@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import AppLayout from "@/components/AppLayout";
 import OrderKanbanCard from "@/components/OrderKanbanCard";
 import { buildSoldOutNames, REQUIRED_STAGES } from "@/lib/menu";
+import { getMenuItems } from "@/lib/menuData"; // Menüyü direkt okuması için eklendi
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 
@@ -31,13 +32,11 @@ export default function KitchenScreen() {
 
   const loadMenu = useCallback(async () => {
     try {
-      const localMenu = localStorage.getItem("app_menu");
-      if (localMenu) {
-        setMenu(JSON.parse(localMenu));
-      } else {
-        setMenu([]);
-      }
+      // Artık sadece localStorage değil, menüyü bulamazsa CSV'den çekecek güvenli fonksiyona bağladık
+      const fetchedMenu = await getMenuItems(); 
+      setMenu(fetchedMenu || []);
     } catch (e) {
+      console.error("Menü çekme hatası:", e);
       setMenu([]);
     }
   }, []);
@@ -48,7 +47,7 @@ export default function KitchenScreen() {
 
     const interval = setInterval(() => {
       loadOrders();
-      loadMenu();
+      loadMenu(); // Stok vb. dinamik bir güncellemeyi yakalamak için periyodik okunuyor
     }, 5000);
 
     return () => clearInterval(interval);
@@ -67,7 +66,6 @@ export default function KitchenScreen() {
 
     const updates = { stageTimestamps: nextTs };
 
-    // Tüm zorunlu aşamalar işaretlendiyse siparişi otomatik tamamla
     if (!isSet && REQUIRED_STAGES.every((s) => !!nextTs[s])) {
       updates.status = "completed";
       updates.completedAt = new Date().toISOString();
