@@ -1,51 +1,70 @@
+import { useEffect } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClientInstance } from "@/lib/queryClient"; // Projenizdeki dosya adına göre '@/lib/query-client' da yapabilirsiniz
-import { BrowserRouter as Router, Route, Routes, Navigate } from "react-router-dom";
-import PageNotFound from "@/lib/PageNotFound";
-import { AuthProvider } from "@/lib/AuthContext";
-import ScrollToTop from "@/components/ScrollToTop";
+import { AuthProvider, useAuth } from "@/lib/AuthContext";
+
+// Sayfalar
+import Login from "@/pages/Login";
 import KitchenScreen from "@/pages/KitchenScreen";
 import OrderScreen from "@/pages/OrderScreen";
 import CashierScreen from "@/pages/CashierScreen";
 import ProfileScreen from "@/pages/ProfileScreen";
-import Login from "@/pages/Login";
-import { getStaff } from "@/lib/staffSession"; // Dosya adınız 'staff.js' ise '@/lib/staff' yapın
+import NotFound from "@/pages/NotFound"; // Eğer bu dosyanız yoksa hata vermemesi için aşağıda basit bir 404 sayfası da oluşturabilirsiniz.
 
-const AuthenticatedApp = () => {
-  const staff = getStaff();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
-  // Oturum açılmamışsa otomatik giriş ekranına yönlendir
-  if (!staff) {
+// Sayfa değiştiğinde otomatik en üste kaydırma
+function ScrollToTop() {
+  const { pathname, hash } = useLocation();
+  useEffect(() => {
+    if (!hash) {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    }
+  }, [pathname, hash]);
+  return null;
+}
+
+// Ana Yönlendirme Mantığı (Eski staff_session yerine useAuth kullanıyor)
+function AppRoutes() {
+  const { isAuthenticated } = useAuth();
+
+  if (isAuthenticated) {
     return (
       <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/" element={<KitchenScreen />} />
+        <Route path="/order" element={<OrderScreen />} />
+        <Route path="/cashier" element={<CashierScreen />} />
+        <Route path="/profile" element={<ProfileScreen />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     );
   }
 
-  // Oturum açılmışsa rollere/sayfalara erişime izin ver
   return (
     <Routes>
-      <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route path="/" element={<KitchenScreen />} />
-      <Route path="/order" element={<OrderScreen />} />
-      <Route path="/cashier" element={<CashierScreen />} />
-      <Route path="/profile" element={<ProfileScreen />} />
-      <Route path="*" element={<PageNotFound />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   );
-};
+}
 
 export default function App() {
   return (
     <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <Router>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
           <ScrollToTop />
-          <AuthenticatedApp />
-        </Router>
+          <AppRoutes />
+        </BrowserRouter>
         <Toaster />
       </QueryClientProvider>
     </AuthProvider>
