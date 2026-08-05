@@ -10,7 +10,6 @@ import KitchenScreen from "@/pages/KitchenScreen";
 import OrderScreen from "@/pages/OrderScreen";
 import CashierScreen from "@/pages/CashierScreen";
 import ProfileScreen from "@/pages/ProfileScreen";
-import NotFound from "@/pages/NotFound"; // Eğer bu dosyanız yoksa hata vermemesi için aşağıda basit bir 404 sayfası da oluşturabilirsiniz.
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,7 +31,20 @@ function ScrollToTop() {
   return null;
 }
 
-// Ana Yönlendirme Mantığı (Eski staff_session yerine useAuth kullanıyor)
+// Dosya bulma hatasını önlemek için 404 bileşeni doğrudan buraya eklendi
+function NotFound() {
+  return (
+    <div className="flex h-[100dvh] flex-col items-center justify-center bg-background px-4 text-center">
+      <h1 className="text-6xl font-bold text-primary">404</h1>
+      <p className="mt-2 text-lg font-medium text-muted-foreground">Aradığınız sayfa bulunamadı.</p>
+      <a href="/" className="mt-4 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground shadow-md transition-colors hover:bg-primary/90">
+        Ana Sayfaya Dön
+      </a>
+    </div>
+  );
+}
+
+// Ana Yönlendirme Mantığı
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
 
