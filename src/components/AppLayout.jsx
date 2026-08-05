@@ -1,11 +1,12 @@
 import { useLocation, Link } from "react-router-dom";
-import { ChefHat, UtensilsCrossed, Calculator, User, Anchor } from "lucide-react";
+import { ChefHat, UtensilsCrossed, Calculator, User, Anchor, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ALL_TABS = [
   { to: "/", label: "Mutfak", icon: ChefHat, match: "/" },
   { to: "/order", label: "Garson", icon: UtensilsCrossed, match: "/order" },
   { to: "/cashier", label: "Kasiyer", icon: Calculator, match: "/cashier" },
+  { to: "/admin", label: "Yönetim", icon: ShieldCheck, match: "/admin" },
   { to: "/profile", label: "Profil", icon: User, match: "/profile" },
 ];
 

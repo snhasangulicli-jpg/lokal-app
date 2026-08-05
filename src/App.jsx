@@ -10,6 +10,7 @@ import KitchenScreen from "@/pages/KitchenScreen";
 import OrderScreen from "@/pages/OrderScreen";
 import CashierScreen from "@/pages/CashierScreen";
 import ProfileScreen from "@/pages/ProfileScreen";
+import AdminScreen from "@/pages/AdminScreen"; // <-- YENİ EKLENDİ
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -55,6 +56,7 @@ function AppRoutes() {
         <Route path="/" element={<KitchenScreen />} />
         <Route path="/order" element={<OrderScreen />} />
         <Route path="/cashier" element={<CashierScreen />} />
+        <Route path="/admin" element={<AdminScreen />} /> {/* <-- YENİ EKLENDİ */}
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
