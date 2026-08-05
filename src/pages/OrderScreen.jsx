@@ -4,17 +4,30 @@ import { supabase } from "@/lib/supabase";
 import AppLayout from "@/components/AppLayout";
 import CartBar from "@/components/CartBar";
 import VariationModal from "@/components/VariationModal";
-import { CATEGORIES, detectMenuType, KITCHEN_STAGES, isItemSoldOut, getCheckedStages } from "@/lib/menu";
+import { CATEGORIES, KITCHEN_STAGES, isItemSoldOut, getCheckedStages } from "@/lib/menu";
 import { getMenuItems } from "@/lib/menuData";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Plus, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Hata çıkmasını önlemek için fonksiyonu doğrudan buraya aldık
+const detectMenuType = (cartItems) => {
+  const fixMenu = (cartItems || []).find((item) => item.name && item.name.includes("Fix Menü"));
+  if (!fixMenu) return "individual";
+  const name = fixMenu.name.toLowerCase();
+  if (name.includes("kebab")) return "kebab_set";
+  if (name.includes("pirzola")) return "lamb_set";
+  if (name.includes("et")) return "meat_set";
+  if (name.includes("tavuk")) return "chicken_set";
+  if (name.includes("meze")) return "fixed_meze";
+  return "fixed_fish";
+};
+
 export default function OrderScreen() {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // YETKİ KONTROLÜ: Sadece Garson ve Kasa işlem yapabilir
+  // YETKİ KONTROLÜ
   const canEdit = user?.role === 'garson' || user?.role === 'kasa';
 
   const [menu, setMenu] = useState(null);
@@ -89,9 +102,7 @@ export default function OrderScreen() {
     const variationLabel = variation ? variation.label : "";
     const unitPrice = variation ? variation.price : item.price;
     setCart((prev) => {
-      const idx = prev.findIndex(
-        (c) => c.name === name && c.variationLabel === variationLabel
-      );
+      const idx = prev.findIndex((c) => c.name === name && c.variationLabel === variationLabel);
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = {
@@ -101,10 +112,7 @@ export default function OrderScreen() {
         };
         return next;
       }
-      return [
-        ...prev,
-        { name, variationLabel, quantity: 1, unitPrice, totalPrice: unitPrice },
-      ];
+      return [...prev, { name, variationLabel, quantity: 1, unitPrice, totalPrice: unitPrice }];
     });
   };
 
@@ -177,6 +185,7 @@ export default function OrderScreen() {
       };
 
       const { error } = await supabase.from("orders").insert([newOrder]);
+      // Eğer Supabase'den hata dönerse doğrudan yakalayıp ekrana basacağız:
       if (error) throw error;
 
       toast({
@@ -186,7 +195,13 @@ export default function OrderScreen() {
       setCart([]);
       setTableNumber("");
     } catch (e) {
-      toast({ variant: "destructive", title: "Gönderilemedi", description: "Lütfen tekrar deneyin." });
+      console.error("Sipariş Gönderme Hatası:", e);
+      toast({ 
+        variant: "destructive", 
+        title: "Gönderilemedi", 
+        // Hatayı doğrudan ekrana yazdırıyoruz!
+        description: e?.message || e?.details || "Bir hata oluştu." 
+      });
     } finally {
       setSending(false);
     }
