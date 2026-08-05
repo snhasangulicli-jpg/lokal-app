@@ -1,18 +1,22 @@
 import { useEffect, useState, useCallback } from "react";
-import { useAuth } from "@/lib/AuthContext"; // Silinen staff.js yerine sistemi dinler
+import { useAuth } from "@/lib/AuthContext";
+import { supabase } from "@/lib/supabase";
 import AppLayout from "@/components/AppLayout";
 import CartBar from "@/components/CartBar";
 import VariationModal from "@/components/VariationModal";
 import { CATEGORIES, detectMenuType, KITCHEN_STAGES, isItemSoldOut, getCheckedStages } from "@/lib/menu";
-import { getMenuItems } from "@/lib/menuData"; // Menüyü çekmek için eklendi
+import { getMenuItems } from "@/lib/menuData";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Plus, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function OrderScreen() {
   const { toast } = useToast();
-  const { user } = useAuth(); // Giriş yapan garsonun bilgisi buradan geliyor
+  const { user } = useAuth();
   
+  // YETKİ KONTROLÜ: Sadece Garson ve Kasa işlem yapabilir
+  const canEdit = user?.role === 'garson' || user?.role === 'kasa';
+
   const [menu, setMenu] = useState(null);
   const [activeCat, setActiveCat] = useState(CATEGORIES[0].id);
   const [cart, setCart] = useState([]);
@@ -36,11 +40,10 @@ export default function OrderScreen() {
 
   useEffect(() => {
     const prev = {};
-    const checkOrderUpdates = () => {
+    const checkOrderUpdates = async () => {
       try {
-        const localData = localStorage.getItem("app_orders");
-        if (!localData) return;
-        const orders = JSON.parse(localData);
+        const { data: orders, error } = await supabase.from("orders").select("*");
+        if (error || !orders) return;
 
         orders.forEach((o) => {
           const checked = getCheckedStages(o);
@@ -106,19 +109,15 @@ export default function OrderScreen() {
   };
 
   const handleProductClick = (item) => {
+    if (!canEdit) {
+      return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Sadece Garson veya Kasiyer sipariş girebilir." });
+    }
     if (isItemSoldOut(item)) {
-      toast({
-        variant: "destructive",
-        title: "Tükendi",
-        description: `${item.name} şu anda stokta değil.`,
-      });
+      toast({ variant: "destructive", title: "Tükendi", description: `${item.name} şu anda stokta değil.` });
       return;
     }
     if (item.isSeasonalPriceOnRequest) {
-      toast({
-        title: "Fiyat sorunuz",
-        description: `${item.name} — mevsimlik üründür, fiyat için mutfağa danışın.`,
-      });
+      toast({ title: "Fiyat sorunuz", description: `${item.name} — mevsimlik üründür, fiyat için mutfağa danışın.` });
       return;
     }
     if (item.hasVariations && item.variations?.length) {
@@ -133,25 +132,28 @@ export default function OrderScreen() {
     setVariationItem(null);
   };
 
-  const inc = (idx) =>
-    setCart((p) =>
-      p.map((c, i) =>
-        i === idx
-          ? { ...c, quantity: c.quantity + 1, totalPrice: (c.quantity + 1) * c.unitPrice }
-          : c
-      )
-    );
-  const dec = (idx) =>
-    setCart((p) =>
-      p.map((c, i) =>
-        i === idx
-          ? { ...c, quantity: c.quantity - 1, totalPrice: (c.quantity - 1) * c.unitPrice }
-          : c
-      )
-    ).filter((c) => c.quantity > 0);
-  const remove = (idx) => setCart((p) => p.filter((_, i) => i !== idx));
+  const inc = (idx) => {
+    if (!canEdit) return;
+    setCart((p) => p.map((c, i) => i === idx ? { ...c, quantity: c.quantity + 1, totalPrice: (c.quantity + 1) * c.unitPrice } : c));
+  };
+  
+  const dec = (idx) => {
+    if (!canEdit) return;
+    setCart((p) => p.map((c, i) => i === idx ? { ...c, quantity: c.quantity - 1, totalPrice: (c.quantity - 1) * c.unitPrice } : c).filter((c) => c.quantity > 0));
+  };
+  
+  const remove = (idx) => {
+    if (!canEdit) return;
+    setCart((p) => p.filter((_, i) => i !== idx));
+  };
+
+  const handleTableChange = (val) => {
+    if (!canEdit) return;
+    setTableNumber(val);
+  };
 
   const handleSend = async () => {
+    if (!canEdit) return;
     if (!tableNumber.trim()) return;
     setSending(true);
     try {
@@ -159,7 +161,7 @@ export default function OrderScreen() {
         id: Date.now().toString(),
         tableNumber: tableNumber.trim(),
         menuType: detectMenuType(cart),
-        waiterName: user?.name || "Bilinmeyen Garson", // Kullanıcı adını sistemden alır
+        waiterName: user?.name || "Bilinmeyen Garson",
         currentStage: 0,
         stageTimestamps: { 0: new Date().toISOString() },
         items: cart.map((c) => ({
@@ -174,24 +176,17 @@ export default function OrderScreen() {
         created_date: new Date().toISOString(),
       };
 
-      const existingOrders = JSON.parse(localStorage.getItem("app_orders") || "[]");
-      localStorage.setItem("app_orders", JSON.stringify([newOrder, ...existingOrders]));
+      const { error } = await supabase.from("orders").insert([newOrder]);
+      if (error) throw error;
 
       toast({
         title: "Sipariş mutfağa gönderildi ✓",
-        description: `Masa ${tableNumber.trim()} — ${cart.reduce(
-          (s, c) => s + c.quantity,
-          0
-        )} ürün.`,
+        description: `Masa ${tableNumber.trim()} — ${cart.reduce((s, c) => s + c.quantity, 0)} ürün.`,
       });
       setCart([]);
       setTableNumber("");
     } catch (e) {
-      toast({
-        variant: "destructive",
-        title: "Gönderilemedi",
-        description: "Lütfen tekrar deneyin.",
-      });
+      toast({ variant: "destructive", title: "Gönderilemedi", description: "Lütfen tekrar deneyin." });
     } finally {
       setSending(false);
     }
@@ -290,7 +285,7 @@ export default function OrderScreen() {
         <CartBar
           cart={cart}
           tableNumber={tableNumber}
-          onTableChange={setTableNumber}
+          onTableChange={handleTableChange}
           onInc={inc}
           onDec={dec}
           onRemove={remove}

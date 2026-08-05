@@ -1,31 +1,36 @@
 import { useEffect, useState, useCallback } from "react";
+import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import TableCard from "@/components/cashier/TableCard";
 import CloseAccountDialog from "@/components/cashier/CloseAccountDialog";
 import EndOfDayDialog from "@/components/cashier/EndOfDayDialog";
 import { aggregateTables } from "@/lib/cashier";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Search, CalendarClock } from "lucide-react";
 
 export default function CashierScreen() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // YETKİ KONTROLÜ: Sadece Kasa işlem yapabilir
+  const canEdit = user?.role === 'kasa';
+
   const [orders, setOrders] = useState(null);
   const [search, setSearch] = useState("");
   const [closeTarget, setCloseTarget] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [endOfDay, setEndOfDay] = useState(false);
 
-  // Siparişleri API veya yerel depodan yükleyen yardımcı fonksiyon
   const loadOrders = useCallback(async () => {
     try {
-      // Kendi backend endpoint'inizi buraya bağlayabilirsiniz (Örn: fetch('/api/orders'))
-      // Geçici/Lokal yapı için localStorage fallback kontrolü:
-      const localData = localStorage.getItem("app_orders");
-      if (localData) {
-        setOrders(JSON.parse(localData));
-      } else {
-        setOrders([]);
-      }
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .order("created_date", { ascending: false });
+        
+      if (error) throw error;
+      setOrders(data || []);
     } catch (err) {
       console.error("Siparişler yüklenirken hata oluştu:", err);
       setOrders([]);
@@ -34,7 +39,6 @@ export default function CashierScreen() {
 
   useEffect(() => {
     loadOrders();
-    // Periyodik olarak (15 saniyede bir) verileri güncelle
     const interval = setInterval(loadOrders, 15000);
     return () => clearInterval(interval);
   }, [loadOrders]);
@@ -45,27 +49,39 @@ export default function CashierScreen() {
     t.tableNumber.toLowerCase().includes(search.trim().toLowerCase())
   );
 
+  const handleOpenCloseModal = (targetTable) => {
+    if (!canEdit) {
+      return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Hesap kapatma işlemini sadece Kasiyer yapabilir." });
+    }
+    setCloseTarget(targetTable);
+  };
+
+  const handleOpenEndOfDay = () => {
+    if (!canEdit) {
+      return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Gün sonu raporunu sadece Kasiyer alabilir." });
+    }
+    setEndOfDay(true);
+  };
+
   const handleClose = async (mode, customerName) => {
+    if (!canEdit) return;
     setProcessing(true);
     try {
       const paidAt = new Date().toISOString();
       const updatedIds = closeTarget.orderIds;
 
-      // Kendi API veya yerel durum güncellemeniz:
-      const updatedOrders = (orders || []).map((o) => {
-        if (updatedIds.includes(o.id)) {
-          return {
-            ...o,
-            paymentStatus: mode,
-            paidAt,
-            ...(customerName ? { customerName } : {}),
-          };
-        }
-        return o;
-      });
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          paymentStatus: mode,
+          paidAt,
+          ...(customerName ? { customerName } : {}),
+        })
+        .in("id", updatedIds);
 
-      setOrders(updatedOrders);
-      localStorage.setItem("app_orders", JSON.stringify(updatedOrders));
+      if (error) throw error;
+
+      await loadOrders();
 
       toast({ title: `Masa ${closeTarget.tableNumber} kapatıldı ✓` });
       setCloseTarget(null);
@@ -90,7 +106,7 @@ export default function CashierScreen() {
               <p className="text-xs text-muted-foreground">Masa hesapları ve ödeme takibi</p>
             </div>
             <button
-              onClick={() => setEndOfDay(true)}
+              onClick={handleOpenEndOfDay}
               className="select-none inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               <CalendarClock className="h-4 w-4" /> Gün Sonu
@@ -122,7 +138,7 @@ export default function CashierScreen() {
             ) : (
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filtered.map((t) => (
-                  <TableCard key={t.tableNumber} table={t} onClose={setCloseTarget} />
+                  <TableCard key={t.tableNumber} table={t} onClose={handleOpenCloseModal} />
                 ))}
               </div>
             )}

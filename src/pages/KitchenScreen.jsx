@@ -1,13 +1,20 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import OrderKanbanCard from "@/components/OrderKanbanCard";
 import { buildSoldOutNames, REQUIRED_STAGES } from "@/lib/menu";
-import { getMenuItems } from "@/lib/menuData"; // Menüyü direkt okuması için eklendi
+import { getMenuItems } from "@/lib/menuData";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2 } from "lucide-react";
 
 export default function KitchenScreen() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // YETKİ KONTROLÜ: Sadece Mutfak ve Kasa işlem yapabilir
+  const canEdit = user?.role === 'mutfak' || user?.role === 'kasa';
+
   const [orders, setOrders] = useState(null);
   const [menu, setMenu] = useState([]);
   const [busyId, setBusyId] = useState(null);
@@ -16,14 +23,14 @@ export default function KitchenScreen() {
 
   const loadOrders = useCallback(async () => {
     try {
-      const localOrders = localStorage.getItem("app_orders");
-      if (localOrders) {
-        const parsed = JSON.parse(localOrders);
-        const pendingList = parsed.filter((o) => o.status === "pending");
-        setOrders(pendingList);
-      } else {
-        setOrders([]);
-      }
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_date", { ascending: false });
+
+      if (error) throw error;
+      setOrders(data || []);
     } catch (e) {
       console.error("Siparişler yüklenirken hata oluştu:", e);
       setOrders([]);
@@ -32,7 +39,6 @@ export default function KitchenScreen() {
 
   const loadMenu = useCallback(async () => {
     try {
-      // Artık sadece localStorage değil, menüyü bulamazsa CSV'den çekecek güvenli fonksiyona bağladık
       const fetchedMenu = await getMenuItems(); 
       setMenu(fetchedMenu || []);
     } catch (e) {
@@ -47,13 +53,17 @@ export default function KitchenScreen() {
 
     const interval = setInterval(() => {
       loadOrders();
-      loadMenu(); // Stok vb. dinamik bir güncellemeyi yakalamak için periyodik okunuyor
+      loadMenu(); 
     }, 5000);
 
     return () => clearInterval(interval);
   }, [loadOrders, loadMenu]);
 
   const handleToggleStage = async (order, stage) => {
+    if (!canEdit) {
+      return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Sipariş aşamalarını sadece Mutfak personeli değiştirebilir." });
+    }
+
     setBusyId(order.id);
     const ts = order.stageTimestamps || {};
     const isSet = !!ts[stage];
@@ -74,31 +84,29 @@ export default function KitchenScreen() {
     }
 
     try {
-      const localData = localStorage.getItem("app_orders");
-      if (localData) {
-        const allOrders = JSON.parse(localData);
-        const updated = allOrders.map((o) =>
-          o.id === order.id ? { ...o, ...updates } : o
-        );
-        localStorage.setItem("app_orders", JSON.stringify(updated));
-      }
+      const { error } = await supabase
+        .from("orders")
+        .update(updates)
+        .eq("id", order.id);
+
+      if (error) throw error;
       await loadOrders();
 
       if (updates.status === "completed") {
         toast({ title: `Masa ${order.tableNumber} tamamlandı ✓` });
       }
     } catch (e) {
-      toast({
-        variant: "destructive",
-        title: "Güncellenmedi",
-        description: "Lütfen tekrar deneyin.",
-      });
+      toast({ variant: "destructive", title: "Güncellenmedi", description: "Lütfen tekrar deneyin." });
     } finally {
       setBusyId(null);
     }
   };
 
   const handleComplete = async (order) => {
+    if (!canEdit) {
+      return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Siparişi sadece Mutfak personeli tamamlayabilir." });
+    }
+
     setBusyId(order.id);
     const updates = {
       status: "completed",
@@ -111,23 +119,17 @@ export default function KitchenScreen() {
     };
 
     try {
-      const localData = localStorage.getItem("app_orders");
-      if (localData) {
-        const allOrders = JSON.parse(localData);
-        const updated = allOrders.map((o) =>
-          o.id === order.id ? { ...o, ...updates } : o
-        );
-        localStorage.setItem("app_orders", JSON.stringify(updated));
-      }
+      const { error } = await supabase
+        .from("orders")
+        .update(updates)
+        .eq("id", order.id);
+
+      if (error) throw error;
       await loadOrders();
 
       toast({ title: `Masa ${order.tableNumber} servise hazır ✓` });
     } catch (e) {
-      toast({
-        variant: "destructive",
-        title: "Güncellenmedi",
-        description: "Lütfen tekrar deneyin.",
-      });
+      toast({ variant: "destructive", title: "Güncellenmedi", description: "Lütfen tekrar deneyin." });
     } finally {
       setBusyId(null);
     }
