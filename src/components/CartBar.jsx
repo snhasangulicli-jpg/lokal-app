@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Minus, Plus, ShoppingCart, Send, Trash2, X } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,6 +15,8 @@ export default function CartBar({
   cart,
   tableNumber,
   onTableChange,
+  orderNote,       // <-- Sipariş notunu props olarak aldık
+  onNoteChange,    // <-- Not değiştirme fonksiyonunu props olarak aldık
   onInc,
   onDec,
   onRemove,
@@ -24,6 +26,12 @@ export default function CartBar({
   const [open, setOpen] = useState(false);
   const count = cart.reduce((s, i) => s + i.quantity, 0);
   const total = cart.reduce((s, i) => s + i.totalPrice, 0);
+
+  // Gönderme işlemi bitince (veya basılınca) çalışacak sarmalayıcı fonksiyon
+  const handleSendClick = () => {
+    onSend();
+    // Opsiyonel: Başarılı olursa diye dialogu kapatabiliriz (şu an sending state'ine bağlı)
+  };
 
   return (
     <>
@@ -56,7 +64,7 @@ export default function CartBar({
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="flex max-h-[85vh] flex-col bg-card border-border text-card-foreground sm:max-w-lg">
+        <DialogContent className="flex max-h-[90vh] flex-col bg-card border-border text-card-foreground sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Sipariş Özeti</DialogTitle>
             <DialogDescription className="text-muted-foreground">
@@ -64,21 +72,45 @@ export default function CartBar({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="table" className="text-xs uppercase tracking-wider text-muted-foreground">
-              Masa Numarası
-            </Label>
-            <Input
-              id="table"
-              inputMode="numeric"
-              value={tableNumber}
-              onChange={(e) => onTableChange(e.target.value)}
-              placeholder="örn. 5"
-              className="h-12 bg-background/40 border-border text-lg font-semibold"
-            />
+          {/* MASA NUMARASI VE SİPARİŞ NOTU ALANI */}
+          <div className="space-y-4 pt-2">
+            
+            {/* Masa Numarası */}
+            <div className="space-y-1.5">
+              <Label htmlFor="table" className="text-xs uppercase tracking-wider text-muted-foreground">
+                Masa Numarası *
+              </Label>
+              <Input
+                id="table"
+                inputMode="text"
+                autoCapitalize="words"
+                value={tableNumber}
+                onChange={(e) => onTableChange(e.target.value)}
+                placeholder="örn. Bahçe 5"
+                className="h-12 bg-background/40 border-border text-lg font-semibold"
+              />
+            </div>
+
+            {/* Sipariş Notu (Özel İstek) */}
+            <div className="space-y-1.5">
+              <Label htmlFor="note" className="text-xs uppercase tracking-wider text-muted-foreground">
+                Özel İstek / Sipariş Notu <span className="text-[10px] lowercase text-muted-foreground/70">(İsteğe Bağlı)</span>
+              </Label>
+              <Input
+                id="note"
+                inputMode="text"
+                autoCapitalize="sentences"
+                value={orderNote || ""} // orderNote undefined gelirse boş string göster
+                onChange={(e) => onNoteChange(e.target.value)}
+                placeholder="örn. Salata soğansız olsun, az pişmiş..."
+                className="h-11 bg-amber-500/5 border-amber-500/20 placeholder:text-amber-500/40 text-sm focus-visible:ring-amber-500/30"
+              />
+            </div>
+
           </div>
 
-          <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin">
+          {/* SEPET ÜRÜNLERİ LİSTESİ */}
+          <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin mt-2">
             {cart.length === 0 ? (
               <p className="py-10 text-center text-sm text-muted-foreground">
                 Sepet boş. Ürün ekleyin.
@@ -147,7 +179,7 @@ export default function CartBar({
           <Button
             size="lg"
             disabled={cart.length === 0 || !tableNumber.trim() || sending}
-            onClick={onSend}
+            onClick={handleSendClick}
             className="h-14 w-full rounded-2xl bg-primary text-base font-semibold text-primary-foreground hover:bg-primary/90"
           >
             {sending ? "Gönderiliyor..." : `Mutfağa Gönder — ${total.toLocaleString("tr-TR")} TL`}

@@ -174,14 +174,31 @@ export default function KitchenScreen() {
             <div className="mx-auto max-w-7xl px-4 py-4 md:px-6">
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {orders.map((order) => (
-                  <OrderKanbanCard
-                    key={order.id}
-                    order={order}
-                    soldOutNames={soldOutNames}
-                    onToggleStage={handleToggleStage}
-                    onComplete={handleComplete}
-                    busy={busyId === order.id}
-                  />
+                  <div key={order.id} className="flex flex-col gap-2">
+                    <OrderKanbanCard
+                      order={order}
+                      soldOutNames={soldOutNames}
+                      onToggleStage={handleToggleStage}
+                      onComplete={handleComplete}
+                      busy={busyId === order.id}
+                    />
+                    
+                    {/* YENİ EKLENEN KISIM: SİPARİŞ NOTU UYARISI */}
+                    {order.note && (
+                      <div className="rounded-xl bg-amber-500/15 border border-amber-500/40 p-3 shadow-sm flex items-start gap-2 animate-in fade-in zoom-in-95">
+                        <span className="text-lg leading-none">⚠️</span>
+                        <div>
+                          <span className="block uppercase tracking-wider text-[10px] text-amber-500 font-bold mb-0.5">
+                            Özel İstek / Not
+                          </span>
+                          <p className="text-sm font-medium text-foreground leading-snug">
+                            {order.note}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                  </div>
                 ))}
               </div>
             </div>

@@ -34,6 +34,7 @@ export default function OrderScreen() {
   const [activeCat, setActiveCat] = useState(CATEGORIES[0].id);
   const [cart, setCart] = useState([]);
   const [tableNumber, setTableNumber] = useState("");
+  const [orderNote, setOrderNote] = useState(""); // <-- Not state'i eklendi
   const [variationItem, setVariationItem] = useState(null);
   const [sending, setSending] = useState(false);
 
@@ -182,24 +183,26 @@ export default function OrderScreen() {
         totalAmount: cart.reduce((s, c) => s + c.totalPrice, 0),
         status: "pending",
         created_date: new Date().toISOString(),
+        note: orderNote.trim() || null, // <-- Not veritabanına ekleniyor
       };
 
       const { error } = await supabase.from("orders").insert([newOrder]);
-      // Eğer Supabase'den hata dönerse doğrudan yakalayıp ekrana basacağız:
       if (error) throw error;
 
       toast({
         title: "Sipariş mutfağa gönderildi ✓",
         description: `Masa ${tableNumber.trim()} — ${cart.reduce((s, c) => s + c.quantity, 0)} ürün.`,
       });
+      
+      // Gönderim başarılı olunca her şeyi sıfırlıyoruz
       setCart([]);
       setTableNumber("");
+      setOrderNote(""); 
     } catch (e) {
       console.error("Sipariş Gönderme Hatası:", e);
       toast({ 
         variant: "destructive", 
         title: "Gönderilemedi", 
-        // Hatayı doğrudan ekrana yazdırıyoruz!
         description: e?.message || e?.details || "Bir hata oluştu." 
       });
     } finally {
@@ -301,6 +304,8 @@ export default function OrderScreen() {
           cart={cart}
           tableNumber={tableNumber}
           onTableChange={handleTableChange}
+          orderNote={orderNote}           // <-- CartBar'a not değişkenini yolladık
+          onNoteChange={setOrderNote}     // <-- CartBar'a not değiştirme fonksiyonunu yolladık
           onInc={inc}
           onDec={dec}
           onRemove={remove}
