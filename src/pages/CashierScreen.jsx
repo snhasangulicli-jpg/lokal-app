@@ -63,18 +63,28 @@ export default function CashierScreen() {
     setEndOfDay(true);
   };
 
-  const handleClose = async (mode, customerName) => {
+  // YENİ: paidAmount parametresi eklendi
+  const handleClose = async (mode, customerName, paidAmount) => {
     if (!canEdit) return;
     setProcessing(true);
     try {
       const paidAt = new Date().toISOString();
       const updatedIds = closeTarget.orderIds;
+      
+      // mode "partial" (parçalı) veya "debt" ise veritabanına "debt" olarak kaydedeceğiz.
+      // mode "paid" ise "paid" kaydedeceğiz.
+      const dbPaymentStatus = mode === "paid" ? "paid" : "debt";
+      
+      // Toplam siparişin ne kadarının ödendiği. "paid" ise hepsi, "debt" ise 0, "partial" ise girilen tutar.
+      const totalTableAmount = closeTarget.totalAmount;
+      const amountToSave = mode === "paid" ? totalTableAmount : (Number(paidAmount) || 0);
 
       const { error } = await supabase
         .from("orders")
         .update({
-          paymentStatus: mode,
+          paymentStatus: dbPaymentStatus,
           paidAt,
+          paid_amount: amountToSave,
           ...(customerName ? { customerName } : {}),
         })
         .in("id", updatedIds);
@@ -83,7 +93,14 @@ export default function CashierScreen() {
 
       await loadOrders();
 
-      toast({ title: `Masa ${closeTarget.tableNumber} kapatıldı ✓` });
+      if (mode === "partial") {
+        toast({ title: `Masa ${closeTarget.tableNumber} için ${amountToSave} TL alındı, kalan tutar veresiyeye yazıldı.` });
+      } else if (mode === "debt") {
+        toast({ title: `Masa ${closeTarget.tableNumber} hesabının tamamı veresiyeye yazıldı.` });
+      } else {
+        toast({ title: `Masa ${closeTarget.tableNumber} hesabı kapatıldı ✓` });
+      }
+      
       setCloseTarget(null);
     } catch {
       toast({

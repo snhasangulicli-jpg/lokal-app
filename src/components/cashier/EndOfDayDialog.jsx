@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase"; // <-- base44 yerine Supabase eklendi
+import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { aggregateProducts, groupDebtByTable, isToday } from "@/lib/cashier";
 import { Loader2, Wallet, AlertTriangle, BarChart3 } from "lucide-react";
@@ -12,7 +12,6 @@ export default function EndOfDayDialog({ open, onClose }) {
     
     (async () => {
       try {
-        // 1. Supabase'den tüm siparişleri çek (Sadece bugünküleri çekmek performans için daha iyidir ama şimdilik hepsini çekip JS ile filtreliyoruz)
         const { data: list, error } = await supabase
           .from("orders")
           .select("*")
@@ -20,18 +19,33 @@ export default function EndOfDayDialog({ open, onClose }) {
 
         if (error) throw error;
 
-        // 2. Sadece "Bugün" ve "Ödemesi Alınmış/Hesaba Yazılmış" siparişleri filtrele
+        // 1. Bugüne ait hesabı kapatılmış siparişleri bul
         const todayOrders = (list || []).filter((o) => o.paymentStatus && isToday(o.paidAt));
         
-        // 3. Ödenenler ve Borca yazılanları ayır
-        const paid = todayOrders.filter((o) => o.paymentStatus === "paid");
-        const debt = todayOrders.filter((o) => o.paymentStatus === "debt");
+        // 2. GÜNLÜK KASA TOPLAMI: (Tüm alınan nakit/peşinatların toplamı)
+        const dailyTotal = todayOrders.reduce((s, o) => s + (Number(o.paid_amount) || 0), 0);
+
+        // 3. BORÇ HESAPLAMA
+        const debtOrders = todayOrders.filter((o) => o.paymentStatus === "debt");
         
-        // 4. Verileri state'e yaz
+        // Toplam kalan borç = (Toplam Tutar - Alınan Peşinat)
+        const debtTotal = debtOrders.reduce((s, o) => {
+          const total = Number(o.totalAmount) || 0;
+          const paid = Number(o.paid_amount) || 0;
+          return s + (total > paid ? total - paid : 0);
+        }, 0);
+
+        // Borçlu listesini oluştururken, `totalAmount` değerini kalan borç ile değiştiriyoruz
+        // (Böylece lib içindeki groupDebtByTable fonksiyonu doğru rakamları toplar)
+        const formattedDebtOrders = debtOrders.map(o => ({
+          ...o,
+          totalAmount: (Number(o.totalAmount) || 0) - (Number(o.paid_amount) || 0)
+        })).filter(o => o.totalAmount > 0);
+
         setData({
-          dailyTotal: paid.reduce((s, o) => s + (o.totalAmount || 0), 0),
-          debtTotal: debt.reduce((s, o) => s + (o.totalAmount || 0), 0),
-          debtList: groupDebtByTable(debt),
+          dailyTotal,
+          debtTotal,
+          debtList: groupDebtByTable(formattedDebtOrders),
           topProducts: aggregateProducts(todayOrders),
         });
       } catch (err) {
