@@ -2,6 +2,7 @@ import { Clock, CheckCheck, Table2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { tr } from "date-fns/locale";
+import { useAuth } from "@/lib/AuthContext"; // Yetki kontrolü eklendi
 
 function timeAgo(dateStr) {
   try {
@@ -12,6 +13,10 @@ function timeAgo(dateStr) {
 }
 
 export default function OrderCard({ order, onComplete, completing }) {
+  // YETKİ KONTROLÜ - Garson mu girdi?
+  const { user } = useAuth();
+  const hidePrices = user?.role === 'garson';
+
   return (
     <div className="flex flex-col rounded-2xl border border-border bg-card shadow-lg overflow-hidden">
       <div className="flex items-center justify-between border-b border-border bg-secondary/40 px-4 py-3">
@@ -47,9 +52,14 @@ export default function OrderCard({ order, onComplete, completing }) {
                 )}
               </div>
             </div>
-            <span className="whitespace-nowrap text-sm font-medium text-muted-foreground">
-              {item.totalPrice.toLocaleString("tr-TR")} TL
-            </span>
+            
+            {/* ÜRÜN BAZLI FİYATI GİZLE */}
+            {!hidePrices && (
+              <span className="whitespace-nowrap text-sm font-medium text-muted-foreground">
+                {item.totalPrice.toLocaleString("tr-TR")} TL
+              </span>
+            )}
+            
           </div>
         ))}
       </div>
@@ -57,8 +67,9 @@ export default function OrderCard({ order, onComplete, completing }) {
       <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
         <div>
           <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Toplam</p>
+          {/* GENEL TOPLAM FİYATI GİZLE VEYA GÖSTER */}
           <p className="text-lg font-bold text-primary">
-            {order.totalAmount.toLocaleString("tr-TR")} TL
+            {hidePrices ? "—" : `${order.totalAmount.toLocaleString("tr-TR")} TL`}
           </p>
         </div>
         <Button

@@ -13,7 +13,7 @@ function minutesAgo(dateStr) {
   return Math.floor((Date.now() - d.getTime()) / 60000);
 }
 
-export default function OrderCard({ order, onComplete }) {
+export default function OrderCard({ order, onComplete, hidePrices }) {
   const mins = minutesAgo(order.created_date);
   const isUrgent = mins >= 10;
   const [completing, setCompleting] = React.useState(false);
@@ -63,6 +63,12 @@ export default function OrderCard({ order, onComplete }) {
                   )}
                 </div>
               </div>
+              {/* ESKİ DOSYADA FİYAT ZATEN YAZMIYORDU AMA YİNE DE EKLEDİK */}
+              {!hidePrices && item.totalPrice && (
+                 <span className="whitespace-nowrap text-sm font-medium text-slate-500">
+                   {item.totalPrice.toLocaleString("tr-TR")} TL
+                 </span>
+              )}
             </div>
           ))}
         </div>
