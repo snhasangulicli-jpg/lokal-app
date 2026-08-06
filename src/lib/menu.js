@@ -1,18 +1,43 @@
-// 1. Kategoriler istenilen şekilde birleştirildi
+// ALT KATEGORİ DESTEKLİ YENİ YAPI
 export const CATEGORIES = [
-  { id: "Fix Menü", label: "Fix Menü", short: "Fix Menü" },
-  { id: "A la Carte", label: "A la Carte", short: "A la Carte" }, // Balık ve Et-Tavuk birleşti
-  { id: "Ekstralar", label: "Ekstralar", short: "Ekstralar" },
-  { id: "Başlangıç", label: "Başlangıç", short: "Başlangıç" },
-  { id: "Mezeler", label: "Mezeler", short: "Mezeler" },
-  { id: "Tatlı & Meyve", label: "Tatlı & Meyve", short: "Tatlı & Meyve" }, // Mevsimlikler çıkartıldı
-  { id: "İçecekler", label: "İçecekler", short: "İçecekler" } // Tüm içki ve meşrubatlar birleşti
+  { id: "Fix Menü", label: "Fix Menü", short: "Fix Menü", dbId: "Fix Menü" },
+  { 
+    id: "A la Carte", 
+    label: "A la Carte", 
+    short: "A la Carte",
+    subCategories: [
+      { id: "Balık", label: "Balık", dbId: "A la Carte - Balık" },
+      { id: "Et-Tavuk", label: "Et & Tavuk", dbId: "A la Carte - Et-Tavuk" }
+    ]
+  },
+  { id: "Ekstralar", label: "Ekstralar", short: "Ekstralar", dbId: "Ekstralar" },
+  { id: "Başlangıç", label: "Başlangıç", short: "Başlangıç", dbId: "Başlangıç" },
+  { id: "Mezeler", label: "Mezeler", short: "Mezeler", dbId: "Mezeler" },
+  // DB adı uzun kalsa da ekranda kısa görünecek:
+  { id: "Tatlı & Meyve", label: "Tatlı & Meyve", short: "Tatlı & Meyve", dbId: "Tatlı & Meyve & Mevsimlikler" },
+  { 
+    id: "İçecekler", 
+    label: "İçecekler", 
+    short: "İçecekler",
+    subCategories: [
+      { id: "Meşrubatlar", label: "Meşrubatlar", dbId: "Meşrubatlar & Sıcak İçecekler" },
+      { id: "Rakı", label: "Rakı", dbId: "Rakı" },
+      { id: "Viskiler", label: "Viskiler", dbId: "Viskiler" },
+      { id: "Biralar", label: "Biralar", dbId: "Biralar & Diğer Alkollü İçecekler" },
+      { id: "Şaraplar", label: "Şaraplar", dbId: "Şaraplar" }
+    ]
+  }
 ];
 
-export const CATEGORY_LABEL = CATEGORIES.reduce((acc, c) => {
-  acc[c.id] = c.label;
-  return acc;
-}, {});
+export const CATEGORY_LABEL = {};
+CATEGORIES.forEach(c => {
+  if (c.dbId) CATEGORY_LABEL[c.dbId] = c.label;
+  if (c.subCategories) {
+    c.subCategories.forEach(sub => {
+      CATEGORY_LABEL[sub.dbId] = sub.label;
+    });
+  }
+});
 
 export const KITCHEN_STAGES = [
   { stage: 0, label: "Yeni Sipariş", emoji: "📥" },
@@ -84,7 +109,6 @@ export function buildSoldOutNames(menuItems) {
   return set;
 }
 
-// Set menüler için zorunlu aşamalar (1-7). Aşama 0 = yeni, 8 = tamamlandı.
 export const REQUIRED_STAGES = [1, 2, 3, 4, 5, 6, 7];
 
 export function getCheckedStages(order) {

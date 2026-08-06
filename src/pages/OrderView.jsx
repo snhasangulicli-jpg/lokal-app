@@ -1,34 +1,24 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, UtensilsCrossed, ShoppingCart } from 'lucide-react';
-import { useAuth } from "@/lib/AuthContext"; // YETKİ KONTROLÜ İÇİN EKLENDİ
+import { useAuth } from "@/lib/AuthContext";
 import ProductCard from '@/components/restaurant/ProductCard';
 import VariationModal from '@/components/restaurant/VariationModal';
 import CartPanel from '@/components/restaurant/CartPanel';
-
-const CATEGORIES = [
-  { id: 'fix-menu', label: 'Fix Menü' },
-  { id: 'balik', label: 'Balık' },
-  { id: 'et-tavuk', label: 'Et-Tavuk' },
-  { id: 'ekstralar', label: 'Ekstralar' },
-  { id: 'baslangic', label: 'Başlangıç' },
-  { id: 'mezeler', label: 'Mezeler' },
-  { id: 'tatli', label: 'Tatlı & Meyve' },
-  { id: 'mesrubat', label: 'İçecekler' },
-  { id: 'raki', label: 'Rakı' },
-  { id: 'viskiler', label: 'Viskiler' },
-  { id: 'biralar', label: 'Biralar' },
-  { id: 'saraplar', label: 'Şaraplar' },
-];
+import { CATEGORIES } from '@/lib/menu'; // YENİ KATEGORİ SİSTEMİNİ İÇERİ ALDIK
 
 export default function OrderView() {
-  const { user } = useAuth(); // Kullanıcı bilgilerini aldık
-  const hidePrices = user?.role === 'garson'; // GARSONSA FİYATLARI GİZLE!
+  const { user } = useAuth();
+  const hidePrices = user?.role === 'garson';
 
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // ANA KATEGORİ VE ALT KATEGORİ STATE'LERİ
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
-  const [cart, setCart] = useState([]); // {key, name, variationLabel, quantity, unitPrice, menuItemId}
+  const [activeSubCategory, setActiveSubCategory] = useState(null);
+  
+  const [cart, setCart] = useState([]); 
   const [tableNumber, setTableNumber] = useState('');
   const [variationItem, setVariationItem] = useState(null);
   const [showCart, setShowCart] = useState(false);
@@ -50,19 +40,36 @@ export default function OrderView() {
     }
   }, []);
 
-  const filteredItems = useMemo(
-    () => menuItems.filter((i) => i.category === activeCategory),
-    [menuItems, activeCategory]
-  );
+  // YENİ FİLTRELEME SİSTEMİ (ALT KATEGORİ DESTEKLİ)
+  const filteredItems = useMemo(() => {
+    const mainCat = CATEGORIES.find(c => c.id === activeCategory);
+    if (!mainCat) return [];
 
-  const cartTotal = useMemo(
-    () => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0),
-    [cart]
-  );
-  const cartCount = useMemo(
-    () => cart.reduce((sum, item) => sum + item.quantity, 0),
-    [cart]
-  );
+    // Veritabanındaki karşılığını arıyoruz
+    let targetDbId = mainCat.dbId;
+    
+    // Eğer alt kategorisi varsa ve seçiliyse, onun dbId'sini kullan
+    if (mainCat.subCategories && activeSubCategory) {
+      const sub = mainCat.subCategories.find(s => s.id === activeSubCategory);
+      if (sub) targetDbId = sub.dbId;
+    }
+
+    return menuItems.filter((i) => i.category === targetDbId);
+  }, [menuItems, activeCategory, activeSubCategory]);
+
+  const cartTotal = useMemo(() => cart.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0), [cart]);
+  const cartCount = useMemo(() => cart.reduce((sum, item) => sum + item.quantity, 0), [cart]);
+
+  // Ana Kategori Seçildiğinde Çalışır
+  const handleCategoryClick = (cat) => {
+    setActiveCategory(cat.id);
+    // Eğer alt kategorisi varsa, otomatik olarak ilkini seçili yap
+    if (cat.subCategories && cat.subCategories.length > 0) {
+      setActiveSubCategory(cat.subCategories[0].id);
+    } else {
+      setActiveSubCategory(null);
+    }
+  };
 
   const handleAddProduct = (item) => {
     if (item.hasVariations && item.variations && item.variations.length > 0) {
@@ -100,18 +107,8 @@ export default function OrderView() {
     setVariationItem(null);
   };
 
-  const updateQty = (key, delta) => {
-    setCart((prev) =>
-      prev
-        .map((c) => (c.key === key ? { ...c, quantity: c.quantity + delta } : c))
-        .filter((c) => c.quantity > 0)
-    );
-  };
-
-  const removeItem = (key) => {
-    setCart((prev) => prev.filter((c) => c.key !== key));
-  };
-
+  const updateQty = (key, delta) => setCart(p => p.map(c => c.key === key ? { ...c, quantity: c.quantity + delta } : c).filter(c => c.quantity > 0));
+  const removeItem = (key) => setCart(p => p.filter(c => c.key !== key));
   const clearCart = () => setCart([]);
 
   const handleSendToKitchen = async () => {
@@ -150,7 +147,6 @@ export default function OrderView() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header */}
       <header className="bg-navy text-white sticky top-0 z-20 shadow-lg">
         <div className="px-4 py-3 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -188,17 +184,15 @@ export default function OrderView() {
           </div>
         </div>
 
-        {/* Category tabs */}
+        {/* ANA KATEGORİ TABLARI */}
         <div className="border-t border-white/10">
           <div className="flex gap-1 overflow-x-auto px-2 py-2 scrollbar-thin">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setActiveCategory(cat.id)}
+                onClick={() => handleCategoryClick(cat)}
                 className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-colors ${
-                  activeCategory === cat.id
-                    ? 'bg-ocean text-white'
-                    : 'bg-white/5 text-slate-300 hover:bg-white/10'
+                  activeCategory === cat.id ? 'bg-ocean text-white' : 'bg-white/5 text-slate-300 hover:bg-white/10'
                 }`}
               >
                 {cat.label}
@@ -206,13 +200,36 @@ export default function OrderView() {
             ))}
           </div>
         </div>
+
+        {/* ALT KATEGORİ TABLARI (Sadece alt kategorisi olanlarda görünür) */}
+        {CATEGORIES.find(c => c.id === activeCategory)?.subCategories && (
+          <div className="bg-navy/90 border-t border-white/5 px-3 py-2 flex gap-2 overflow-x-auto scrollbar-thin shadow-inner">
+            {CATEGORIES.find(c => c.id === activeCategory).subCategories.map(sub => (
+              <button
+                key={sub.id}
+                onClick={() => setActiveSubCategory(sub.id)}
+                className={`flex-shrink-0 px-3 py-1.5 rounded-md text-xs font-bold transition-all ${
+                  activeSubCategory === sub.id 
+                    ? 'bg-white text-navy shadow-sm' 
+                    : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                }`}
+              >
+                {sub.label}
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       {/* Products grid */}
       <main className="flex-1 px-4 py-5 pb-32">
         <h2 className="text-slate-700 font-bold text-lg mb-3">
-          {CATEGORIES.find((c) => c.id === activeCategory)?.label}
+          {activeSubCategory 
+            ? CATEGORIES.find(c => c.id === activeCategory)?.subCategories.find(s => s.id === activeSubCategory)?.label 
+            : CATEGORIES.find(c => c.id === activeCategory)?.label
+          }
         </h2>
+        
         {loading ? (
           <div className="flex flex-col items-center justify-center py-24 text-slate-400">
             <div className="w-10 h-10 border-4 border-slate-200 border-t-ocean rounded-full animate-spin mb-4" />
@@ -221,13 +238,13 @@ export default function OrderView() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {filteredItems.map((item) => (
-              <ProductCard 
-                key={item.id} 
-                item={item} 
-                onAdd={handleAddProduct} 
-                hidePrices={hidePrices} // ÜRÜN KARTINA BİLGİ GÖNDERİLDİ
-              />
+              <ProductCard key={item.id} item={item} onAdd={handleAddProduct} hidePrices={hidePrices} />
             ))}
+            {filteredItems.length === 0 && (
+              <p className="col-span-full py-10 text-center text-sm text-slate-500">
+                Bu kategoride ürün bulunamadı.
+              </p>
+            )}
           </div>
         )}
       </main>
@@ -242,16 +259,12 @@ export default function OrderView() {
               </div>
               <div>
                 <p className="text-slate-400 text-xs">{cartCount} ürün · Masa {tableNumber || '—'}</p>
-                {/* GARSON DEĞİLSE TOPLAMI GÖSTER, GARSONSA GİZLE */}
                 {!hidePrices && (
                   <p className="text-white font-extrabold text-lg leading-tight">{cartTotal.toLocaleString('tr-TR')} TL</p>
                 )}
               </div>
             </div>
-            <button
-              onClick={() => setShowCart(true)}
-              className="bg-ocean hover:bg-ocean/90 text-white font-bold px-6 py-3 rounded-xl transition-colors flex items-center gap-2"
-            >
+            <button onClick={() => setShowCart(true)} className="bg-ocean hover:bg-ocean/90 text-white font-bold px-6 py-3 rounded-xl transition-colors flex items-center gap-2">
               Sepeti Aç
             </button>
           </div>
@@ -264,7 +277,7 @@ export default function OrderView() {
           item={variationItem}
           onSelect={(v) => handleVariationSelect(variationItem, v)}
           onClose={() => setVariationItem(null)}
-          hidePrices={hidePrices} // SEÇENEKLİ ÜRÜNLERE BİLGİ GÖNDERİLDİ
+          hidePrices={hidePrices}
         />
       )}
 
@@ -281,7 +294,7 @@ export default function OrderView() {
           onSend={handleSendToKitchen}
           sending={sending}
           onClose={() => setShowCart(false)}
-          hidePrices={hidePrices} // SEPETE BİLGİ GÖNDERİLDİ
+          hidePrices={hidePrices}
         />
       )}
     </div>
