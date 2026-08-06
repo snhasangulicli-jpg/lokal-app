@@ -17,7 +17,6 @@ export const AuthProvider = ({ children }) => {
     return !!localStorage.getItem('app_user');
   });
 
-  // Artık anında okunduğu için yükleme (loading) durumlarına gerek yok, false/true başlatıyoruz.
   const [isLoadingAuth, setIsLoadingAuth] = useState(false);
   const [authChecked, setAuthChecked] = useState(true);
   
@@ -26,8 +25,11 @@ export const AuthProvider = ({ children }) => {
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings, setAppPublicSettings] = useState({ id: 'local', public_settings: {} });
 
-  // 2. ADIM: Eksik olan login fonksiyonunu ekliyoruz
-  const login = (userData) => {
+  // 2. ADIM: Yeni Role (Yetki) Sistemine Uygun Login Fonksiyonu
+  const login = (roleOrData) => {
+    // Eğer Login sayfasından sadece string gelirse (örn: "garson"), bunu objeye çeviriyoruz.
+    const userData = typeof roleOrData === "string" ? { role: roleOrData } : roleOrData;
+    
     localStorage.setItem('app_user', JSON.stringify(userData));
     setUser(userData);
     setIsAuthenticated(true);
@@ -48,7 +50,6 @@ export const AuthProvider = ({ children }) => {
     window.location.href = '/login';
   };
 
-  // Eski kodlarınızın hata vermemesi için uyumluluk fonksiyonları
   const checkUserAuth = async () => {
     const stored = localStorage.getItem('app_user');
     if (stored) {
@@ -74,7 +75,7 @@ export const AuthProvider = ({ children }) => {
       authError,
       appPublicSettings,
       authChecked,
-      login, // <-- Login sayfasında kullanılacak fonksiyon
+      login, 
       logout,
       navigateToLogin,
       checkUserAuth,

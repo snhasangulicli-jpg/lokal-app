@@ -12,6 +12,7 @@ export default function CartPanel({
   onSend,
   sending,
   onClose,
+  hidePrices // <--- Fiyatları gizleme komutu eklendi
 }) {
   const canSend = cart.length > 0 && tableNumber.trim();
 
@@ -33,22 +34,22 @@ export default function CartPanel({
         </div>
 
         {/* Table number input */}
-        <div className="px-5 py-4 border-b border-slate-100">
+        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
           <label className="flex items-center gap-2 text-slate-600 font-semibold text-sm mb-2">
             <MapPin className="w-4 h-4 text-ocean" />
-            Masa Numarası
+            Masa Numarası (Zorunlu)
           </label>
           <input
             type="text"
             value={tableNumber}
             onChange={(e) => setTableNumber(e.target.value)}
             placeholder="Örn: 5"
-            className="w-full border-2 border-slate-200 focus:border-ocean rounded-xl px-4 py-3 font-bold text-lg focus:outline-none"
+            className="w-full border-2 border-slate-200 focus:border-ocean rounded-xl px-4 py-3 font-bold text-lg focus:outline-none bg-white"
           />
         </div>
 
         {/* Cart items */}
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-400">
               <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
@@ -58,22 +59,28 @@ export default function CartPanel({
               <p className="text-sm">Menüden ürün ekleyin</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {cart.map((item) => (
-                <div key={item.key} className="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
+                <div key={item.key} className="flex items-center gap-3 bg-white border border-slate-100 shadow-sm rounded-xl p-3">
                   <div className="flex-1">
                     <p className="font-bold text-slate-800 text-sm leading-tight">{item.name}</p>
                     {item.variationLabel && (
-                      <p className="text-xs text-slate-500">{item.variationLabel}</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{item.variationLabel}</p>
                     )}
-                    <p className="text-ocean font-bold text-sm mt-0.5">
-                      {(item.unitPrice * item.quantity).toLocaleString('tr-TR')} TL
-                    </p>
+                    
+                    {/* FİYAT GÖSTERİMİ */}
+                    {!hidePrices && (
+                      <p className="text-ocean font-bold text-sm mt-1">
+                        {(item.unitPrice * item.quantity).toLocaleString('tr-TR')} TL
+                      </p>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1.5 bg-white rounded-lg border border-slate-200 p-1">
+                  
+                  {/* Butonlar */}
+                  <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg border border-slate-200 p-1">
                     <button
                       onClick={() => onQty(item.key, -1)}
-                      className="w-7 h-7 rounded-md bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                      className="w-7 h-7 rounded-md bg-white hover:bg-slate-200 flex items-center justify-center transition-colors shadow-sm"
                     >
                       <Minus className="w-4 h-4 text-slate-600" />
                     </button>
@@ -85,40 +92,47 @@ export default function CartPanel({
                       <Plus className="w-4 h-4 text-ocean" />
                     </button>
                   </div>
+                  
                   <button
                     onClick={() => onRemove(item.key)}
-                    className="p-2 text-slate-400 hover:text-red-500 transition-colors"
+                    className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors ml-1"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
               ))}
+              
               <button
                 onClick={onClear}
-                className="w-full text-center text-sm text-slate-400 hover:text-red-500 font-medium py-2 transition-colors"
+                className="w-full text-center text-sm text-slate-400 hover:text-red-500 font-medium py-3 transition-colors mt-2"
               >
-                Sepeti Temizle
+                Tümünü Sil
               </button>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-slate-100 bg-slate-50">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-slate-600 font-semibold">Toplam</span>
-            <span className="text-2xl font-extrabold text-ocean">{total.toLocaleString('tr-TR')} TL</span>
-          </div>
+        <div className="px-5 py-4 border-t border-slate-100 bg-white shadow-[0_-4px_10px_-4px_rgba(0,0,0,0.05)]">
+          {/* FİYAT GİZLİ DEĞİLSE TOPLAMI GÖSTER */}
+          {!hidePrices && (
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-slate-600 font-semibold">Toplam</span>
+              <span className="text-2xl font-extrabold text-ocean">{total.toLocaleString('tr-TR')} TL</span>
+            </div>
+          )}
+          
           <button
             onClick={onSend}
             disabled={!canSend || sending}
-            className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl transition-colors text-lg"
+            className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold py-4 rounded-xl transition-all text-lg"
           >
             <Send className="w-5 h-5" />
             {sending ? 'Gönderiliyor...' : 'Mutfağa Gönder'}
           </button>
+          
           {!canSend && cart.length > 0 && (
-            <p className="text-center text-xs text-amber-600 mt-2">Masa numarası girin</p>
+            <p className="text-center text-xs text-amber-600 mt-2 font-medium">Lütfen masa numarası girin</p>
           )}
         </div>
       </div>

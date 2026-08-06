@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, UtensilsCrossed, ShoppingCart } from 'lucide-react';
+import { useAuth } from "@/lib/AuthContext"; // YETKİ KONTROLÜ İÇİN EKLENDİ
 import ProductCard from '@/components/restaurant/ProductCard';
 import VariationModal from '@/components/restaurant/VariationModal';
 import CartPanel from '@/components/restaurant/CartPanel';
@@ -21,6 +22,9 @@ const CATEGORIES = [
 ];
 
 export default function OrderView() {
+  const { user } = useAuth(); // Kullanıcı bilgilerini aldık
+  const hidePrices = user?.role === 'garson'; // GARSONSA FİYATLARI GİZLE!
+
   const [menuItems, setMenuItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
@@ -158,7 +162,7 @@ export default function OrderView() {
             </div>
             <div>
               <h1 className="font-bold text-lg leading-tight">Sipariş Ekranı</h1>
-              <p className="text-slate-400 text-xs">Garson Görünümü</p>
+              <p className="text-slate-400 text-xs">{user?.name || "Garson Görünümü"}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -217,7 +221,12 @@ export default function OrderView() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {filteredItems.map((item) => (
-              <ProductCard key={item.id} item={item} onAdd={handleAddProduct} />
+              <ProductCard 
+                key={item.id} 
+                item={item} 
+                onAdd={handleAddProduct} 
+                hidePrices={hidePrices} // ÜRÜN KARTINA BİLGİ GÖNDERİLDİ
+              />
             ))}
           </div>
         )}
@@ -233,7 +242,10 @@ export default function OrderView() {
               </div>
               <div>
                 <p className="text-slate-400 text-xs">{cartCount} ürün · Masa {tableNumber || '—'}</p>
-                <p className="text-white font-extrabold text-lg leading-tight">{cartTotal.toLocaleString('tr-TR')} TL</p>
+                {/* GARSON DEĞİLSE TOPLAMI GÖSTER, GARSONSA GİZLE */}
+                {!hidePrices && (
+                  <p className="text-white font-extrabold text-lg leading-tight">{cartTotal.toLocaleString('tr-TR')} TL</p>
+                )}
               </div>
             </div>
             <button
@@ -252,6 +264,7 @@ export default function OrderView() {
           item={variationItem}
           onSelect={(v) => handleVariationSelect(variationItem, v)}
           onClose={() => setVariationItem(null)}
+          hidePrices={hidePrices} // SEÇENEKLİ ÜRÜNLERE BİLGİ GÖNDERİLDİ
         />
       )}
 
@@ -268,6 +281,7 @@ export default function OrderView() {
           onSend={handleSendToKitchen}
           sending={sending}
           onClose={() => setShowCart(false)}
+          hidePrices={hidePrices} // SEPETE BİLGİ GÖNDERİLDİ
         />
       )}
     </div>

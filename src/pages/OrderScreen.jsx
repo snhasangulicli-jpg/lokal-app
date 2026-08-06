@@ -10,7 +10,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Plus, Waves } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Hata çıkmasını önlemek için fonksiyonu doğrudan buraya aldık
 const detectMenuType = (cartItems) => {
   const fixMenu = (cartItems || []).find((item) => item.name && item.name.includes("Fix Menü"));
   if (!fixMenu) return "individual";
@@ -27,14 +26,15 @@ export default function OrderScreen() {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // YETKİ KONTROLÜ
-  const canEdit = user?.role === 'garson' || user?.role === 'kasa';
+  // YETKİ VE GİZLİLİK KONTROLÜ
+  const canEdit = user?.role === 'garson' || user?.role === 'kasa' || user?.role === 'admin';
+  const hidePrices = user?.role === 'garson'; // Garsonlar fiyat göremez!
 
   const [menu, setMenu] = useState(null);
   const [activeCat, setActiveCat] = useState(CATEGORIES[0].id);
   const [cart, setCart] = useState([]);
   const [tableNumber, setTableNumber] = useState("");
-  const [orderNote, setOrderNote] = useState(""); // <-- Not state'i eklendi
+  const [orderNote, setOrderNote] = useState(""); 
   const [variationItem, setVariationItem] = useState(null);
   const [sending, setSending] = useState(false);
 
@@ -183,7 +183,7 @@ export default function OrderScreen() {
         totalAmount: cart.reduce((s, c) => s + c.totalPrice, 0),
         status: "pending",
         created_date: new Date().toISOString(),
-        note: orderNote.trim() || null, // <-- Not veritabanına ekleniyor
+        note: orderNote.trim() || null, 
       };
 
       const { error } = await supabase.from("orders").insert([newOrder]);
@@ -194,7 +194,6 @@ export default function OrderScreen() {
         description: `Masa ${tableNumber.trim()} — ${cart.reduce((s, c) => s + c.quantity, 0)} ürün.`,
       });
       
-      // Gönderim başarılı olunca her şeyi sıfırlıyoruz
       setCart([]);
       setTableNumber("");
       setOrderNote(""); 
@@ -274,6 +273,8 @@ export default function OrderScreen() {
                         )}
                       </div>
                     </div>
+                    
+                    {/* FİYAT GÖSTERİM VEYA GİZLEME ALANI */}
                     <div className="text-right">
                       {isItemSoldOut(item) ? (
                         <span className="rounded-lg bg-red-500/15 px-2.5 py-1 text-xs font-bold text-red-400">
@@ -281,6 +282,10 @@ export default function OrderScreen() {
                         </span>
                       ) : item.isSeasonalPriceOnRequest ? (
                         <span className="text-sm font-semibold text-amber-400">—</span>
+                      ) : hidePrices ? (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary">
+                          <Plus className="h-4 w-4" />
+                        </div>
                       ) : (
                         <span className="text-base font-bold text-primary">
                           {item.price?.toLocaleString("tr-TR")}
@@ -288,6 +293,7 @@ export default function OrderScreen() {
                         </span>
                       )}
                     </div>
+
                   </button>
                 ))}
                 {items.length === 0 && (
@@ -304,13 +310,14 @@ export default function OrderScreen() {
           cart={cart}
           tableNumber={tableNumber}
           onTableChange={handleTableChange}
-          orderNote={orderNote}           // <-- CartBar'a not değişkenini yolladık
-          onNoteChange={setOrderNote}     // <-- CartBar'a not değiştirme fonksiyonunu yolladık
+          orderNote={orderNote}
+          onNoteChange={setOrderNote}
           onInc={inc}
           onDec={dec}
           onRemove={remove}
           onSend={handleSend}
           sending={sending}
+          hidePrices={hidePrices} // <--- SEPETE FİYATLARI GİZLE EMRİ GİDİYOR
         />
       </div>
 
@@ -318,6 +325,7 @@ export default function OrderScreen() {
         item={variationItem}
         onSelect={handleVariationSelect}
         onClose={() => setVariationItem(null)}
+        hidePrices={hidePrices} // <--- SEÇENEKLİ ÜRÜNLER İÇİN FİYATLARI GİZLE EMRİ GİDİYOR
       />
     </AppLayout>
   );

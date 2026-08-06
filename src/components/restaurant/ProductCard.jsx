@@ -1,12 +1,15 @@
 import React from 'react';
 import { Plus, HelpCircle } from 'lucide-react';
 
-export default function ProductCard({ item, onAdd }) {
-  const priceLabel = item.isSeasonalPriceOnRequest
-    ? 'Fiyat Sorunuz'
-    : item.hasVariations && (!item.price || item.price === 0)
-      ? 'Seçenekli'
-      : `${item.price.toLocaleString('tr-TR')} TL`;
+export default function ProductCard({ item, onAdd, hidePrices }) {
+  // Eğer fiyatlar gizliyse, sadece "Seçenekli" veya "Fiyat Sorunuz" gibi özel durumları göster
+  const priceLabel = hidePrices
+    ? (item.isSeasonalPriceOnRequest ? 'Fiyat Sorunuz' : item.hasVariations ? 'Seçenekli' : 'Ekle')
+    : item.isSeasonalPriceOnRequest
+      ? 'Fiyat Sorunuz'
+      : item.hasVariations && (!item.price || item.price === 0)
+        ? 'Seçenekli'
+        : `${item.price.toLocaleString('tr-TR')} TL`;
 
   return (
     <button
@@ -30,7 +33,7 @@ export default function ProductCard({ item, onAdd }) {
         )}
       </div>
       <div className="flex items-center justify-between mt-3">
-        <span className={`font-extrabold ${item.isSeasonalPriceOnRequest ? 'text-amber-500 text-xs' : 'text-ocean text-base'}`}>
+        <span className={`font-extrabold ${item.isSeasonalPriceOnRequest ? 'text-amber-500 text-xs' : (hidePrices && !item.hasVariations ? 'text-slate-500 text-sm' : 'text-ocean text-base')}`}>
           {priceLabel}
         </span>
         <div className="w-8 h-8 rounded-lg bg-ocean/10 group-hover:bg-ocean group-hover:text-white text-ocean flex items-center justify-center transition-colors flex-shrink-0">

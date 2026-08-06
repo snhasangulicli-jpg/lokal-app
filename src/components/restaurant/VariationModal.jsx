@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Check } from 'lucide-react';
 
-export default function VariationModal({ item, onSelect, onClose }) {
+export default function VariationModal({ item, onSelect, onClose, hidePrices }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={onClose}>
       <div
@@ -10,7 +10,7 @@ export default function VariationModal({ item, onSelect, onClose }) {
       >
         <div className="bg-navy px-5 py-4 flex items-center justify-between">
           <div>
-            <p className="text-slate-400 text-xs">Boyut seçin</p>
+            <p className="text-slate-400 text-xs">Seçenek belirleyin</p>
             <h2 className="text-white font-bold text-lg">{item.name}</h2>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
@@ -30,7 +30,10 @@ export default function VariationModal({ item, onSelect, onClose }) {
                 </div>
                 <span className="font-bold text-slate-800">{v.label}</span>
               </div>
-              <span className="font-extrabold text-ocean text-lg">{v.price.toLocaleString('tr-TR')} TL</span>
+              {/* SADECE YETKİLİLER FİYAT GÖRÜR */}
+              {!hidePrices && (
+                <span className="font-extrabold text-ocean text-lg">{v.price.toLocaleString('tr-TR')} TL</span>
+              )}
             </button>
           ))}
         </div>
