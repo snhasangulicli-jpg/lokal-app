@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { supabase } from "@/lib/supabase";
 import AppLayout from "@/components/AppLayout";
@@ -31,7 +31,11 @@ export default function OrderScreen() {
   const hidePrices = user?.role === 'garson'; // Garsonlar fiyat göremez!
 
   const [menu, setMenu] = useState(null);
+  
+  // KATEGORİ STATE'LERİ
   const [activeCat, setActiveCat] = useState(CATEGORIES[0].id);
+  const [activeSubCat, setActiveSubCat] = useState(null);
+
   const [cart, setCart] = useState([]);
   const [tableNumber, setTableNumber] = useState("");
   const [orderNote, setOrderNote] = useState(""); 
@@ -96,7 +100,37 @@ export default function OrderScreen() {
     return () => clearInterval(interval);
   }, [toast]);
 
-  const items = (menu || []).filter((m) => m.category === activeCat);
+  // KATEGORİ TIKLAMA İŞLEMİ (Alt kategorileri yönetir)
+  const handleCategoryClick = (catId) => {
+    setActiveCat(catId);
+    const catObj = CATEGORIES.find(c => c.id === catId);
+    if (catObj && catObj.subCategories && catObj.subCategories.length > 0) {
+      setActiveSubCat(catObj.subCategories[0].id);
+    } else {
+      setActiveSubCat(null);
+    }
+  };
+
+  // YENİ FİLTRELEME SİSTEMİ (DB ile hatasız eşleşme)
+  const items = useMemo(() => {
+    if (!menu) return [];
+    
+    const mainCat = CATEGORIES.find(c => c.id === activeCat);
+    if (!mainCat) return [];
+
+    let targetDbId = mainCat.dbId || mainCat.id;
+    
+    if (mainCat.subCategories && activeSubCat) {
+      const sub = mainCat.subCategories.find(s => s.id === activeSubCat);
+      if (sub) targetDbId = sub.dbId;
+    } else if (mainCat.subCategories && mainCat.subCategories.length > 0) {
+      targetDbId = mainCat.subCategories[0].dbId;
+    }
+
+    // .trim() metodu olası boşluk hatalarını siler ve eşleşmeyi garantiler
+    return menu.filter((m) => m.category?.trim() === targetDbId?.trim());
+  }, [menu, activeCat, activeSubCat]);
+
 
   const addToCart = (item, variation = null) => {
     const name = item.name;
@@ -212,12 +246,14 @@ export default function OrderScreen() {
   return (
     <AppLayout>
       <div className="flex h-full flex-col">
+        
+        {/* ANA KATEGORİ TABLARI */}
         <div className="border-b border-border bg-card/60">
           <div className="no-scrollbar mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.id}
-                onClick={() => setActiveCat(cat.id)}
+                onClick={() => handleCategoryClick(cat.id)}
                 className={cn(
                   "select-none whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-medium transition-colors",
                   activeCat === cat.id
@@ -229,13 +265,37 @@ export default function OrderScreen() {
               </button>
             ))}
           </div>
+          
+          {/* ALT KATEGORİ TABLARI (Sadece İçecekler veya A la carte seçiliyse görünür) */}
+          {CATEGORIES.find(c => c.id === activeCat)?.subCategories && (
+            <div className="bg-secondary/20 border-t border-border px-4 py-2 flex gap-2 overflow-x-auto scrollbar-thin shadow-inner">
+              {CATEGORIES.find(c => c.id === activeCat).subCategories.map(sub => (
+                <button
+                  key={sub.id}
+                  onClick={() => setActiveSubCat(sub.id)}
+                  className={cn(
+                    "flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                    activeSubCat === sub.id 
+                      ? "bg-background text-foreground shadow-sm border border-border" 
+                      : "bg-transparent text-muted-foreground hover:bg-secondary"
+                  )}
+                >
+                  {sub.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin">
           <div className="mx-auto max-w-7xl px-4 py-5 pb-32">
             <h2 className="mb-4 text-lg font-semibold text-muted-foreground">
-              {CATEGORIES.find((c) => c.id === activeCat)?.label}
+              {activeSubCat 
+                ? CATEGORIES.find(c => c.id === activeCat)?.subCategories.find(s => s.id === activeSubCat)?.label 
+                : CATEGORIES.find(c => c.id === activeCat)?.label
+              }
             </h2>
+            
             {menu === null ? (
               <div className="flex h-48 items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -317,7 +377,7 @@ export default function OrderScreen() {
           onRemove={remove}
           onSend={handleSend}
           sending={sending}
-          hidePrices={hidePrices} // <--- SEPETE FİYATLARI GİZLE EMRİ GİDİYOR
+          hidePrices={hidePrices} 
         />
       </div>
 
@@ -325,7 +385,7 @@ export default function OrderScreen() {
         item={variationItem}
         onSelect={handleVariationSelect}
         onClose={() => setVariationItem(null)}
-        hidePrices={hidePrices} // <--- SEÇENEKLİ ÜRÜNLER İÇİN FİYATLARI GİZLE EMRİ GİDİYOR
+        hidePrices={hidePrices} 
       />
     </AppLayout>
   );
