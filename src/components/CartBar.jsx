@@ -15,22 +15,21 @@ export default function CartBar({
   cart,
   tableNumber,
   onTableChange,
-  orderNote,       // <-- Sipariş notunu props olarak aldık
-  onNoteChange,    // <-- Not değiştirme fonksiyonunu props olarak aldık
+  orderNote,
+  onNoteChange,
   onInc,
   onDec,
   onRemove,
   onSend,
   sending,
+  hidePrices // <--- Fiyat gizleme komutu props olarak alındı
 }) {
   const [open, setOpen] = useState(false);
   const count = cart.reduce((s, i) => s + i.quantity, 0);
   const total = cart.reduce((s, i) => s + i.totalPrice, 0);
 
-  // Gönderme işlemi bitince (veya basılınca) çalışacak sarmalayıcı fonksiyon
   const handleSendClick = () => {
     onSend();
-    // Opsiyonel: Başarılı olursa diye dialogu kapatabiliriz (şu an sending state'ine bağlı)
   };
 
   return (
@@ -45,7 +44,9 @@ export default function CartBar({
           >
             <ShoppingCart className="h-5 w-5" />
             <span className="font-semibold">{count} ürün</span>
-            {count > 0 && (
+            
+            {/* SADECE YETKİLİLER İÇİN GENEL TOPLAM BARI */}
+            {!hidePrices && count > 0 && (
               <span className="ml-auto text-lg font-bold text-primary">
                 {total.toLocaleString("tr-TR")} TL
               </span>
@@ -72,7 +73,6 @@ export default function CartBar({
             </DialogDescription>
           </DialogHeader>
 
-          {/* MASA NUMARASI VE SİPARİŞ NOTU ALANI */}
           <div className="space-y-4 pt-2">
             
             {/* Masa Numarası */}
@@ -100,13 +100,12 @@ export default function CartBar({
                 id="note"
                 inputMode="text"
                 autoCapitalize="sentences"
-                value={orderNote || ""} // orderNote undefined gelirse boş string göster
+                value={orderNote || ""}
                 onChange={(e) => onNoteChange(e.target.value)}
                 placeholder="örn. Salata soğansız olsun, az pişmiş..."
                 className="h-11 bg-amber-500/5 border-amber-500/20 placeholder:text-amber-500/40 text-sm focus-visible:ring-amber-500/30"
               />
             </div>
-
           </div>
 
           {/* SEPET ÜRÜNLERİ LİSTESİ */}
@@ -127,9 +126,13 @@ export default function CartBar({
                       {item.variationLabel && (
                         <p className="text-xs text-muted-foreground">{item.variationLabel}</p>
                       )}
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {(item.unitPrice ?? 0).toLocaleString("tr-TR")} TL / adet
-                      </p>
+                      
+                      {/* BİRİM FİYAT (GARSONDAN GİZLİ) */}
+                      {!hidePrices && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {(item.unitPrice ?? 0).toLocaleString("tr-TR")} TL / adet
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Button
@@ -160,21 +163,28 @@ export default function CartBar({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
-                    <span className="w-24 text-right text-sm font-bold text-primary">
-                      {(item.totalPrice ?? 0).toLocaleString("tr-TR")} TL
-                    </span>
+                    
+                    {/* ÜRÜN TOPLAM FİYAT (GARSONDAN GİZLİ) */}
+                    {!hidePrices && (
+                      <span className="w-24 text-right text-sm font-bold text-primary">
+                        {(item.totalPrice ?? 0).toLocaleString("tr-TR")} TL
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
             )}
           </div>
 
-          <div className="flex items-center justify-between border-t border-border pt-4">
-            <span className="text-sm text-muted-foreground">Toplam</span>
-            <span className="text-2xl font-bold text-primary">
-              {total.toLocaleString("tr-TR")} TL
-            </span>
-          </div>
+          {/* SİPARİŞ GENEL TOPLAMI (GARSONDAN GİZLİ) */}
+          {!hidePrices && (
+            <div className="flex items-center justify-between border-t border-border pt-4">
+              <span className="text-sm text-muted-foreground">Toplam</span>
+              <span className="text-2xl font-bold text-primary">
+                {total.toLocaleString("tr-TR")} TL
+              </span>
+            </div>
+          )}
 
           <Button
             size="lg"
@@ -182,7 +192,12 @@ export default function CartBar({
             onClick={handleSendClick}
             className="h-14 w-full rounded-2xl bg-primary text-base font-semibold text-primary-foreground hover:bg-primary/90"
           >
-            {sending ? "Gönderiliyor..." : `Mutfağa Gönder — ${total.toLocaleString("tr-TR")} TL`}
+            {sending 
+              ? "Gönderiliyor..." 
+              : hidePrices 
+                ? "Mutfağa Gönder" 
+                : `Mutfağa Gönder — ${total.toLocaleString("tr-TR")} TL`
+            }
           </Button>
         </DialogContent>
       </Dialog>
