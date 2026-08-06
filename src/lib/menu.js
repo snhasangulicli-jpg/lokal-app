@@ -1,16 +1,12 @@
+// 1. Kategoriler istenilen şekilde birleştirildi
 export const CATEGORIES = [
   { id: "Fix Menü", label: "Fix Menü", short: "Fix Menü" },
-  { id: "A la Carte - Balık", label: "A la Carte - Balık", short: "Balık" },
-  { id: "A la Carte - Et-Tavuk", label: "A la Carte - Et-Tavuk", short: "Et-Tavuk" },
+  { id: "A la Carte", label: "A la Carte", short: "A la Carte" }, // Balık ve Et-Tavuk birleşti
   { id: "Ekstralar", label: "Ekstralar", short: "Ekstralar" },
   { id: "Başlangıç", label: "Başlangıç", short: "Başlangıç" },
   { id: "Mezeler", label: "Mezeler", short: "Mezeler" },
-  { id: "Tatlı & Meyve & Mevsimlikler", label: "Tatlı & Meyve & Mevsimlikler", short: "Tatlı & Meyve" },
-  { id: "Meşrubatlar & Sıcak İçecekler", label: "Meşrubatlar & Sıcak İçecekler", short: "Meşrubatlar" },
-  { id: "Rakı", label: "Rakı", short: "Rakı" },
-  { id: "Viskiler", label: "Viskiler", short: "Viskiler" },
-  { id: "Biralar & Diğer Alkollü İçecekler", label: "Biralar & Diğer Alkollü İçecekler", short: "Biralar" },
-  { id: "Şaraplar", label: "Şaraplar", short: "Şaraplar" },
+  { id: "Tatlı & Meyve", label: "Tatlı & Meyve", short: "Tatlı & Meyve" }, // Mevsimlikler çıkartıldı
+  { id: "İçecekler", label: "İçecekler", short: "İçecekler" } // Tüm içki ve meşrubatlar birleşti
 ];
 
 export const CATEGORY_LABEL = CATEGORIES.reduce((acc, c) => {
