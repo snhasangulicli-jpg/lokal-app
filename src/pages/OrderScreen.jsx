@@ -26,21 +26,55 @@ export default function OrderScreen() {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // YETKİ VE GİZLİLİK KONTROLÜ
   const canEdit = user?.role === 'garson' || user?.role === 'kasa' || user?.role === 'admin';
-  const hidePrices = user?.role === 'garson'; // Garsonlar fiyat göremez!
+  const hidePrices = user?.role === 'garson'; 
 
   const [menu, setMenu] = useState(null);
-  
-  // KATEGORİ STATE'LERİ
   const [activeCat, setActiveCat] = useState(CATEGORIES[0].id);
   const [activeSubCat, setActiveSubCat] = useState(null);
-
   const [cart, setCart] = useState([]);
   const [tableNumber, setTableNumber] = useState("");
   const [orderNote, setOrderNote] = useState(""); 
   const [variationItem, setVariationItem] = useState(null);
   const [sending, setSending] = useState(false);
+
+  // 1. SİSTEM BİLDİRİM İZNİ İSTE
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // 2. SES VE KİLİT EKRANI BİLDİRİMİ GÖNDERİCİSİ
+  const notifyUser = useCallback((title, body) => {
+    // A. Uygulama içi (Toast) bildirim
+    toast({ title, description: body });
+
+    // B. Ses Çalma
+    try {
+      const audio = new Audio('/notification.wav');
+      audio.play().catch(e => console.log("Tarayıcı sesi engelledi:", e));
+    } catch (error) {
+      console.error("Ses çalma hatası:", error);
+    }
+
+    // C. Kilit Ekranı / Push Bildirim
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification(title, { 
+          body: body || "Yeni sipariş güncellemesi",
+          icon: "/favicon.ico"
+        });
+        
+        // Telefon titreşimi destekliyorsa (Android) titresin:
+        if (navigator.vibrate) {
+          navigator.vibrate([200, 100, 200]);
+        }
+      } catch (e) {
+        console.error("Kilit ekranı bildirimi gönderilemedi:", e);
+      }
+    }
+  }, [toast]);
 
   const loadMenu = useCallback(async () => {
     try {
@@ -73,20 +107,27 @@ export default function OrderScreen() {
             return;
           }
 
-          const who = o.waiterName ? `${o.waiterName} — ` : "";
+          const who = o.waiterName ? `${o.waiterName} - ` : "";
+          
           checked.forEach((stage) => {
             if (!p.checked.has(stage)) {
               const stageInfo = KITCHEN_STAGES.find((s) => s.stage === stage);
               if (stageInfo) {
-                toast({
-                  title: `${who}Masa ${o.tableNumber} — ${stageInfo.emoji} ${stageInfo.label} Hazır`,
-                });
+                // YENİ BİLDİRİM SİSTEMİNİ TETİKLE
+                notifyUser(
+                  `${stageInfo.emoji} ${stageInfo.label} Hazır`,
+                  `${who}Masa ${o.tableNumber} için ${stageInfo.label} mutfaktan çıktı!`
+                );
               }
             }
           });
 
           if (isCompleted && !p.completed) {
-            toast({ title: `${who}Masa ${o.tableNumber} — Servise Hazır ✓` });
+            // YENİ BİLDİRİM SİSTEMİNİ TETİKLE
+            notifyUser(
+              `✅ Servise Hazır`,
+              `${who}Masa ${o.tableNumber} siparişinin tamamı hazırlandı!`
+            );
           }
 
           prev[o.id] = { checked, completed: isCompleted };
@@ -98,9 +139,8 @@ export default function OrderScreen() {
 
     const interval = setInterval(checkOrderUpdates, 3000);
     return () => clearInterval(interval);
-  }, [toast]);
+  }, [notifyUser]); // notifyUser bağımlılık olarak eklendi
 
-  // KATEGORİ TIKLAMA İŞLEMİ (Alt kategorileri yönetir)
   const handleCategoryClick = (catId) => {
     setActiveCat(catId);
     const catObj = CATEGORIES.find(c => c.id === catId);
@@ -111,7 +151,6 @@ export default function OrderScreen() {
     }
   };
 
-  // YENİ FİLTRELEME SİSTEMİ (DB ile hatasız eşleşme)
   const items = useMemo(() => {
     if (!menu) return [];
     
@@ -127,10 +166,8 @@ export default function OrderScreen() {
       targetDbId = mainCat.subCategories[0].dbId;
     }
 
-    // .trim() metodu olası boşluk hatalarını siler ve eşleşmeyi garantiler
     return menu.filter((m) => m.category?.trim() === targetDbId?.trim());
   }, [menu, activeCat, activeSubCat]);
-
 
   const addToCart = (item, variation = null) => {
     const name = item.name;
@@ -247,7 +284,6 @@ export default function OrderScreen() {
     <AppLayout>
       <div className="flex h-full flex-col">
         
-        {/* ANA KATEGORİ TABLARI */}
         <div className="border-b border-border bg-card/60">
           <div className="no-scrollbar mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3">
             {CATEGORIES.map((cat) => (
@@ -266,7 +302,6 @@ export default function OrderScreen() {
             ))}
           </div>
           
-          {/* ALT KATEGORİ TABLARI (Sadece İçecekler veya A la carte seçiliyse görünür) */}
           {CATEGORIES.find(c => c.id === activeCat)?.subCategories && (
             <div className="bg-secondary/20 border-t border-border px-4 py-2 flex gap-2 overflow-x-auto scrollbar-thin shadow-inner">
               {CATEGORIES.find(c => c.id === activeCat).subCategories.map(sub => (
@@ -334,7 +369,6 @@ export default function OrderScreen() {
                       </div>
                     </div>
                     
-                    {/* FİYAT GÖSTERİM VEYA GİZLEME ALANI */}
                     <div className="text-right">
                       {isItemSoldOut(item) ? (
                         <span className="rounded-lg bg-red-500/15 px-2.5 py-1 text-xs font-bold text-red-400">
@@ -353,7 +387,6 @@ export default function OrderScreen() {
                         </span>
                       )}
                     </div>
-
                   </button>
                 ))}
                 {items.length === 0 && (
