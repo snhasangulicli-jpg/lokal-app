@@ -4,7 +4,8 @@ import { supabase } from "@/lib/supabase";
 import AppLayout from "@/components/AppLayout";
 import CartBar from "@/components/CartBar";
 import VariationModal from "@/components/VariationModal";
-import { CATEGORIES, KITCHEN_STAGES, isItemSoldOut, getCheckedStages } from "@/lib/menu";
+// HATA YARATAN FONKSİYONLARI BURADAN KALDIRDIK.
+import { CATEGORIES, KITCHEN_STAGES } from "@/lib/menu";
 import { getMenuItems } from "@/lib/menuData";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Plus, Waves, Edit } from "lucide-react";
@@ -13,6 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+
+// Güvenli Kontrol Fonksiyonu (Eksikse diye kendi içine aldık)
+const getSafeCheckedStages = (order) => {
+  if (!order || !order.stageTimestamps) return new Set();
+  return new Set(Object.keys(order.stageTimestamps).map(Number));
+};
 
 const detectMenuType = (cartItems) => {
   const fixMenu = (cartItems || []).find((item) => item?.name && item.name.includes("Fix Menü"));
@@ -42,15 +49,12 @@ export default function OrderScreen() {
   const [variationItem, setVariationItem] = useState(null);
   const [sending, setSending] = useState(false);
 
-  // ÖZEL ÜRÜN STATE'LERİ
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [customItem, setCustomItem] = useState({ name: "", price: "" });
 
   const notifyUser = useCallback((title, body) => {
     toast({ title, description: body });
-    try {
-      new Audio('/notification.wav').play().catch(() => {});
-    } catch (e) {}
+    try { new Audio('/notification.wav').play().catch(() => {}); } catch (e) {}
     if ("Notification" in window && Notification.permission === "granted") {
       try {
         new Notification(title, { body: body || "Yeni sipariş" });
@@ -75,14 +79,14 @@ export default function OrderScreen() {
         const { data: orders, error } = await supabase.from("orders").select("*");
         if (error || !orders) return;
         orders.forEach((o) => {
-          const checked = getCheckedStages(o);
+          const checked = getSafeCheckedStages(o);
           const isCompleted = o.status === "completed";
           const p = prev[o.id];
           if (!p) { prev[o.id] = { checked, completed: isCompleted }; return; }
           const who = o.waiterName ? `${o.waiterName} - ` : "";
           checked.forEach((stage) => {
             if (!p.checked.has(stage)) {
-              const stageInfo = KITCHEN_STAGES.find((s) => s.stage === stage);
+              const stageInfo = (KITCHEN_STAGES || []).find((s) => s.stage === stage);
               if (stageInfo) notifyUser(`${stageInfo.emoji} ${stageInfo.label} Hazır`, `${who}Masa ${o.tableNumber} için çıktı!`);
             }
           });
@@ -144,7 +148,7 @@ export default function OrderScreen() {
 
   const handleProductClick = (item) => {
     if (!canEdit) return toast({ variant: "destructive", title: "Yetkisiz", description: "Sadece Garson/Kasiyer girebilir." });
-    if (isItemSoldOut(item)) return toast({ variant: "destructive", title: "Tükendi" });
+    if (item.isSoldOut) return toast({ variant: "destructive", title: "Tükendi" });
     if (item.isSeasonalPriceOnRequest) return toast({ title: "Fiyat sorunuz" });
     if (item.hasVariations && item.variations?.length) return setVariationItem(item);
     addToCart(item);
@@ -236,7 +240,7 @@ export default function OrderScreen() {
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {items.map((item) => (
-                  <button key={item.id} onClick={() => handleProductClick(item)} className={cn("group select-none flex min-h-[72px] items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-all active:scale-[0.98]", isItemSoldOut(item) ? "cursor-not-allowed border-red-500/30 opacity-50" : "hover:border-primary hover:bg-primary/5")}>
+                  <button key={item.id} onClick={() => handleProductClick(item)} className={cn("group select-none flex min-h-[72px] items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-all active:scale-[0.98]", item.isSoldOut ? "cursor-not-allowed border-red-500/30 opacity-50" : "hover:border-primary hover:bg-primary/5")}>
                     <div className="flex items-center gap-3">
                       {item.category === "A la Carte - Balık" || item.category === "Rakı" || item.category === "Şaraplar" ? (
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Waves className="h-5 w-5" /></div>
@@ -250,7 +254,7 @@ export default function OrderScreen() {
                       </div>
                     </div>
                     <div className="text-right">
-                      {isItemSoldOut(item) ? ( <span className="rounded-lg bg-red-500/15 px-2.5 py-1 text-xs font-bold text-red-400">Tükendi</span> ) 
+                      {item.isSoldOut ? ( <span className="rounded-lg bg-red-500/15 px-2.5 py-1 text-xs font-bold text-red-400">Tükendi</span> ) 
                         : item.isSeasonalPriceOnRequest ? ( <span className="text-sm font-semibold text-amber-400">—</span> ) 
                         : hidePrices ? ( <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary"><Plus className="h-4 w-4" /></div> ) 
                         : ( <span className="text-base font-bold text-primary">{item.price?.toLocaleString("tr-TR")}<span className="block text-xs font-normal text-muted-foreground">TL</span></span> )}
