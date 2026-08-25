@@ -1,54 +1,55 @@
 // src/lib/printer.js
 
 export const printReceipt = (orderOrTable, type = "KITCHEN") => {
-  // type: "KITCHEN" (Mutfak Fişi - Fiyat gizli) | "CUSTOMER" (Müşteri Adisyonu - Fiyatlı)
-  
   const tableNumber = orderOrTable.tableNumber || "?";
   const items = orderOrTable.items || [];
   const totalAmount = orderOrTable.totalAmount || 0;
   const note = orderOrTable.note || "";
   const date = new Date().toLocaleString("tr-TR");
 
-  // Arka planda görünmez bir iFrame oluşturuyoruz (Ekranda görünmeden yazdırmak için)
   const iframe = document.createElement("iframe");
   iframe.style.position = "fixed";
   iframe.style.right = "-9999px";
   iframe.style.bottom = "-9999px";
   document.body.appendChild(iframe);
 
-  // 80mm Termal Kağıt için özel HTML/CSS Tasarımı
   const content = `
+    <!DOCTYPE html>
     <html>
       <head>
+        <meta charset="utf-8">
         <style>
-          @page { margin: 0; } /* Tarayıcı tarihini ve linkini gizler */
+          @page { margin: 0; }
+          html, body { margin: 0; padding: 0; width: 100%; background: #fff; }
           body { 
-            font-family: 'Courier New', Courier, monospace; 
-            width: 72mm; /* 80mm kağıt genişliği */
-            margin: 0 auto; 
-            padding: 15px 5px;
+            font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; /* Termal yazıcıya uygun net font */
+            width: 76mm; /* 80mm için güvenli alan */
+            padding: 10px 5px 10px 5px; 
             color: #000;
-            font-size: 14px;
+            font-size: 15px;
+            box-sizing: border-box;
           }
           .center { text-align: center; }
           .bold { font-weight: bold; }
-          .border-bottom { border-bottom: 1px dashed #000; margin: 10px 0; padding-bottom: 5px; }
+          .border-bottom { border-bottom: 2px dashed #000; margin: 8px 0; padding-bottom: 8px; }
           .flex-between { display: flex; justify-content: space-between; }
-          .text-xl { font-size: 24px; }
-          .text-lg { font-size: 18px; }
-          table { width: 100%; text-align: left; border-collapse: collapse; margin-top: 10px; }
-          th, td { padding: 5px 0; font-size: 15px; vertical-align: top; }
-          .qty { width: 25px; font-weight: bold; font-size: 16px; }
-          .price { text-align: right; font-weight: bold; }
-          .note { border: 2px solid #000; padding: 8px; margin-top: 15px; font-weight: bold; text-transform: uppercase; }
-          .footer-space { height: 40px; } /* Kesici için boşluk */
+          .text-xl { font-size: 26px; }
+          .text-lg { font-size: 20px; }
+          table { width: 100%; text-align: left; border-collapse: collapse; margin-top: 15px; }
+          th, td { padding: 5px 0; vertical-align: top; }
+          .qty { width: 30px; font-weight: bold; font-size: 18px; }
+          .item-name { font-weight: bold; font-size: 16px; }
+          .variation { font-size: 13px; font-weight: normal; margin-top: 2px; }
+          .price { text-align: right; font-weight: bold; font-size: 16px; }
+          .note { border: 2px solid #000; padding: 8px; margin-top: 20px; font-weight: bold; font-size: 16px; text-transform: uppercase; }
+          .footer-space { height: 40px; }
         </style>
       </head>
       <body>
-        <div class="center bold text-lg">KARDEŞLER LOKALİ</div>
-        <div class="center border-bottom">${type === "KITCHEN" ? "MUTFAK SİPARİŞİ" : "MÜŞTERİ ADİSYONU"}</div>
+        <div class="center bold text-lg">KTSABD LOKALI</div>
+        <div class="center border-bottom">${type === "KITCHEN" ? "MUTFAK SIPARISI" : "MUSTERI ADISYONU"}</div>
         
-        <div class="flex-between">
+        <div class="flex-between" style="font-size: 12px; margin-top: 5px;">
           <span>Tarih:</span>
           <span>${date}</span>
         </div>
@@ -62,8 +63,8 @@ export const printReceipt = (orderOrTable, type = "KITCHEN") => {
             <tr>
               <td class="qty">${item.quantity}x</td>
               <td>
-                <div class="bold">${item.name}</div>
-                ${item.variationLabel ? `<div style="font-size: 12px; margin-left: 2px;">- ${item.variationLabel}</div>` : ''}
+                <div class="item-name">${item.name}</div>
+                ${item.variationLabel ? `<div class="variation">- ${item.variationLabel}</div>` : ''}
               </td>
               ${type === "CUSTOMER" ? `<td class="price">${item.totalPrice} TL</td>` : ''}
             </tr>
@@ -71,7 +72,7 @@ export const printReceipt = (orderOrTable, type = "KITCHEN") => {
         </table>
         
         ${type === "CUSTOMER" ? `
-          <div class="border-bottom"></div>
+          <div class="border-bottom" style="margin-top: 15px;"></div>
           <div class="flex-between bold text-xl" style="margin-top: 15px;">
             <span>TOPLAM:</span>
             <span>${totalAmount} TL</span>
@@ -85,24 +86,21 @@ export const printReceipt = (orderOrTable, type = "KITCHEN") => {
         ` : ''}
 
         <div class="center" style="margin-top: 30px; font-size: 12px;">
-          ${type === "CUSTOMER" ? "Afiyet olsun! Bizi tercih ettiğiniz için tesekkürler." : "Lütfen siparisi hemen hazirlayiniz."}
+          ${type === "CUSTOMER" ? "Afiyet olsun!<br>Bizi tercih ettiginiz icin tesekkurler." : "Lutfen siparisi hemen hazirlayiniz."}
         </div>
         <div class="footer-space"></div>
       </body>
     </html>
   `;
 
-  // iFrame'in içine fiş tasarımını yazdır
   const doc = iframe.contentWindow.document;
   doc.open();
   doc.write(content);
   doc.close();
 
-  // Yüklenmesini bekleyip saniyesinde yazdırma (kiosk) komutunu tetikle
   setTimeout(() => {
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
-    // Yazdırma işlemi bitince görünmez iFrame'i sil (belleği şişirmemek için)
     setTimeout(() => {
       document.body.removeChild(iframe);
     }, 2000);
