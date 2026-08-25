@@ -7,7 +7,7 @@ import VariationModal from "@/components/VariationModal";
 import { CATEGORIES, KITCHEN_STAGES, isItemSoldOut, getCheckedStages } from "@/lib/menu";
 import { getMenuItems } from "@/lib/menuData";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Plus, Waves, Edit2, Minus } from "lucide-react";
+import { Loader2, Plus, Waves, PenLine } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -43,10 +43,15 @@ export default function OrderScreen() {
   const [variationItem, setVariationItem] = useState(null);
   const [sending, setSending] = useState(false);
 
-  // AKILLI ÖZEL İŞLEM MODALI STATE'LERİ
+  // SADECE ÖZEL ÜRÜN İÇİN STATE
   const [isCustomOpen, setIsCustomOpen] = useState(false);
-  const [customType, setCustomType] = useState('product'); // 'product' veya 'discount'
   const [customItem, setCustomItem] = useState({ name: "", price: "" });
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
 
   const notifyUser = useCallback((title, body) => {
     toast({ title, description: body });
@@ -134,26 +139,23 @@ export default function OrderScreen() {
     });
   };
 
-  // İNDİRİM VEYA ÜRÜN EKLEME FONKSİYONU
+  // TERTEMİZ ÖZEL ÜRÜN MANTIĞI: Garsona fiyat sormaz, 0 TL olarak ekler
   const submitCustomItem = () => {
     if (!customItem?.name?.trim()) return;
     
-    const rawPrice = Number(customItem.price) || 0;
-    // Eğer İndirim modundaysa fiyatı negatife çevirir
-    const finalPrice = customType === 'discount' ? -Math.abs(rawPrice) : Math.abs(rawPrice);
-    const prefix = customType === 'discount' ? '⬇ İNDİRİM:' : '*ÖZEL*';
-
+    // Eğer giren kişi garson ise fiyat otomatik 0 olur. Kasa/Admin ise fiyat girebilir.
+    const finalPrice = hidePrices ? 0 : (Number(customItem.price) || 0);
+    
     addToCart({ 
-      name: `${prefix} ${customItem.name.trim()}`, 
+      name: `*ÖZEL* ${customItem.name.trim()}`, 
       price: finalPrice 
     });
 
     setIsCustomOpen(false);
     setCustomItem({ name: "", price: "" });
-    setCustomType('product'); // Modeli sıfırla
     toast({ 
-      title: customType === 'discount' ? "İndirim Uygulandı ✓" : "Özel Ürün Eklendi ✓", 
-      description: "Hesap toplamı güncellendi." 
+      title: "Özel İstek Eklendi", 
+      description: hidePrices ? "Mutfağa iletilecek, fiyatı kasa belirleyecek." : "Sepete eklendi." 
     });
   };
 
@@ -170,7 +172,7 @@ export default function OrderScreen() {
   const remove = (idx) => { setCart((p) => p.filter((_, i) => i !== idx)); };
   const handleTableChange = (val) => { setTableNumber(val); };
 
-  // YILDIRIM HIZI (OPTIMISTIC UI) İLE GÖNDERME
+  // YILDIRIM HIZI GÖNDERME GERİ GELDİ (GÜVENLİ HALİYLE)
   const handleSend = async () => {
     if (!canEdit || !tableNumber?.trim()) return;
     
@@ -179,7 +181,6 @@ export default function OrderScreen() {
     const backupTable = tableNumber;
     const backupNote = orderNote;
     
-    // İnterneti BEKLEMEDEN ekranı garson için anında temizliyoruz!
     setCart([]);
     setTableNumber("");
     setOrderNote(""); 
@@ -199,7 +200,6 @@ export default function OrderScreen() {
       
       toast({ title: "Sipariş mutfağa gönderildi ✓" });
     } catch (e) {
-      // Hata olursa sildiğimiz sepeti garsona geri veriyoruz (Zırh)
       setCart(backupCart);
       setTableNumber(backupTable);
       setOrderNote(backupNote);
@@ -247,7 +247,7 @@ export default function OrderScreen() {
                 {displayTitle}
               </h2>
               <Button onClick={() => setIsCustomOpen(true)} variant="outline" size="sm" className="border-dashed border-2 border-primary text-primary hover:bg-primary/10">
-                <Edit2 className="w-4 h-4 mr-2" /> Özel İşlem (İndirim / Ekle)
+                <PenLine className="w-4 h-4 mr-2" /> Özel İstek Ekle
               </Button>
             </div>
             
@@ -290,50 +290,27 @@ export default function OrderScreen() {
 
       <VariationModal item={variationItem} onSelect={handleVariationSelect} onClose={() => setVariationItem(null)} hidePrices={hidePrices} />
       
-      {/* İKİ MODLU ÖZEL İŞLEM MODALI */}
-      <Dialog open={isCustomOpen} onOpenChange={(val) => { setIsCustomOpen(val); if(!val) setCustomType('product'); }}>
+      {/* SADE VE GÜVENLİ ÖZEL İSTEK MODALI */}
+      <Dialog open={isCustomOpen} onOpenChange={setIsCustomOpen}>
         <DialogContent className="sm:max-w-sm bg-card border-border">
-          <DialogHeader><DialogTitle>Özel İşlem Menüsü</DialogTitle></DialogHeader>
-          
-          <div className="flex gap-2 pt-2">
-            <Button 
-              variant={customType === 'product' ? 'default' : 'outline'} 
-              onClick={() => setCustomType('product')} 
-              className={cn("flex-1", customType === 'product' && "bg-primary")}
-            >
-              <Plus className="w-4 h-4 mr-1.5"/> Ürün Ekle
-            </Button>
-            <Button 
-              variant={customType === 'discount' ? 'default' : 'outline'} 
-              onClick={() => setCustomType('discount')} 
-              className={cn("flex-1", customType === 'discount' && "bg-amber-500 hover:bg-amber-600 text-white border-transparent")}
-            >
-              <Minus className="w-4 h-4 mr-1.5"/> İndirim Yap
-            </Button>
-          </div>
-
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label>
-                {customType === 'product' ? 'İstek (Örn: 1.5 Full Karışık)' : 'İndirim Nedeni (Örn: Fix Menü Farkı)'}
-              </Label>
-              <Input autoFocus placeholder={customType === 'product' ? "Ne getirelim?" : "Neden indirim yapılıyor?"} value={customItem?.name || ""} onChange={(e) => setCustomItem({...customItem, name: e.target.value})} />
+          <DialogHeader><DialogTitle>Özel İstek Ekle</DialogTitle></DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>İstek (Örn: 1.5 Full Karışık, Az Pişmiş...)</Label>
+              <Input autoFocus placeholder="Ne getirelim?" value={customItem?.name || ""} onChange={(e) => setCustomItem({...customItem, name: e.target.value})} />
             </div>
             
-            <div className="space-y-1.5">
-              <Label>{customType === 'product' ? 'Fiyat (TL)' : 'İndirilecek Tutar (TL)'}</Label>
-              <Input type="number" placeholder={customType === 'product' ? "Örn: 650" : "Örn: 400"} value={customItem?.price || ""} onChange={(e) => setCustomItem({...customItem, price: e.target.value})} />
-            </div>
+            {/* GARSON BURAYI GÖREMEZ, KASA/ADMİN GÖREBİLİR */}
+            {!hidePrices && (
+              <div className="space-y-2">
+                <Label>Fiyat (TL) - <span className="text-xs text-muted-foreground">Boş bırakırsanız 0 TL olur</span></Label>
+                <Input type="number" placeholder="Örn: 650" value={customItem?.price || ""} onChange={(e) => setCustomItem({...customItem, price: e.target.value})} />
+              </div>
+            )}
           </div>
-          
-          <div className="flex justify-end gap-2 mt-2">
+          <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIsCustomOpen(false)}>İptal</Button>
-            <Button 
-              onClick={submitCustomItem} 
-              className={customType === 'discount' ? "bg-amber-500 hover:bg-amber-600 text-white" : ""}
-            >
-              {customType === 'discount' ? 'İndirimi Uygula' : 'Sepete Ekle'}
-            </Button>
+            <Button onClick={submitCustomItem}>Sepete Ekle</Button>
           </div>
         </DialogContent>
       </Dialog>
