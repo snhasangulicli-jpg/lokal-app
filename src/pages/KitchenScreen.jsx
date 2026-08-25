@@ -37,12 +37,10 @@ export default function KitchenScreen() {
       const printedOrders = JSON.parse(localStorage.getItem("printed_orders") || "[]");
       let hasNewPrint = false;
 
-      // Eğer sistem ilk defa kuruluyorsa (hafıza boşsa), mevcut siparişleri yazdırılmış say (Makineyi kağıda boğmamak için)
       if (printedOrders.length === 0 && fetchedOrders.length > 0) {
         const allIds = fetchedOrders.map(o => o.id);
         localStorage.setItem("printed_orders", JSON.stringify(allIds));
       } else {
-        // Normal işleyiş: Gelen siparişlere bak, hafızada (yazdırılanlarda) yoksa YAZDIR!
         fetchedOrders.forEach(o => {
           if (!printedOrders.includes(o.id)) {
             printedOrders.push(o.id);
@@ -52,9 +50,7 @@ export default function KitchenScreen() {
           }
         });
 
-        // Yeni bir şey yazdırıldıysa hafızayı kaydet
         if (hasNewPrint) {
-          // Hafıza şişmesin diye son 1000 fişi aklında tutar
           if (printedOrders.length > 1000) printedOrders.splice(0, printedOrders.length - 1000);
           localStorage.setItem("printed_orders", JSON.stringify(printedOrders));
         }
@@ -62,7 +58,6 @@ export default function KitchenScreen() {
 
       setOrders(fetchedOrders);
     } catch (e) {
-      console.error("Siparişler yüklenirken hata:", e);
       setOrders([]);
     }
   }, [toast]);
@@ -72,7 +67,6 @@ export default function KitchenScreen() {
       const fetchedMenu = await getMenuItems(); 
       setMenu(fetchedMenu || []);
     } catch (e) {
-      console.error("Menü hatası:", e);
       setMenu([]);
     }
   }, []);
@@ -81,7 +75,6 @@ export default function KitchenScreen() {
     loadOrders();
     loadMenu();
 
-    // HER 3 SANİYEDE BİR YENİ SİPARİŞ VAR MI DİYE KONTROL EDER
     const interval = setInterval(() => {
       loadOrders();
     }, 3000);
