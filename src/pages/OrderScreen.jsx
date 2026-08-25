@@ -4,22 +4,16 @@ import { supabase } from "@/lib/supabase";
 import AppLayout from "@/components/AppLayout";
 import CartBar from "@/components/CartBar";
 import VariationModal from "@/components/VariationModal";
-// HATA YARATAN FONKSİYONLARI BURADAN KALDIRDIK.
-import { CATEGORIES, KITCHEN_STAGES } from "@/lib/menu";
+// Orijinal fonksiyonlarınızı aynen geri koyduk
+import { CATEGORIES, KITCHEN_STAGES, isItemSoldOut, getCheckedStages } from "@/lib/menu";
 import { getMenuItems } from "@/lib/menuData";
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Plus, Waves, Edit } from "lucide-react";
+import { Loader2, Plus, Waves, Edit2 } from "lucide-react"; // HATA YAPAN İKON "Edit2" OLARAK DÜZELTİLDİ
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-
-// Güvenli Kontrol Fonksiyonu (Eksikse diye kendi içine aldık)
-const getSafeCheckedStages = (order) => {
-  if (!order || !order.stageTimestamps) return new Set();
-  return new Set(Object.keys(order.stageTimestamps).map(Number));
-};
 
 const detectMenuType = (cartItems) => {
   const fixMenu = (cartItems || []).find((item) => item?.name && item.name.includes("Fix Menü"));
@@ -41,20 +35,27 @@ export default function OrderScreen() {
   const hidePrices = user?.role === 'garson'; 
 
   const [menu, setMenu] = useState(null);
-  const [activeCat, setActiveCat] = useState(CATEGORIES?.[0]?.id || "");
+  
+  // Zırhlı kategori okuma
+  const safeCategories = Array.isArray(CATEGORIES) ? CATEGORIES : [];
+  const [activeCat, setActiveCat] = useState(safeCategories[0]?.id || "");
   const [activeSubCat, setActiveSubCat] = useState(null);
+  
   const [cart, setCart] = useState([]);
   const [tableNumber, setTableNumber] = useState("");
   const [orderNote, setOrderNote] = useState(""); 
   const [variationItem, setVariationItem] = useState(null);
   const [sending, setSending] = useState(false);
 
+  // ÖZEL ÜRÜN STATE'LERİ
   const [isCustomOpen, setIsCustomOpen] = useState(false);
   const [customItem, setCustomItem] = useState({ name: "", price: "" });
 
   const notifyUser = useCallback((title, body) => {
     toast({ title, description: body });
-    try { new Audio('/notification.wav').play().catch(() => {}); } catch (e) {}
+    try {
+      new Audio('/notification.wav').play().catch(() => {});
+    } catch (e) {}
     if ("Notification" in window && Notification.permission === "granted") {
       try {
         new Notification(title, { body: body || "Yeni sipariş" });
@@ -79,7 +80,8 @@ export default function OrderScreen() {
         const { data: orders, error } = await supabase.from("orders").select("*");
         if (error || !orders) return;
         orders.forEach((o) => {
-          const checked = getSafeCheckedStages(o);
+          // Orijinal getCheckedStages fonksiyonunuz kullanılıyor
+          const checked = getCheckedStages ? getCheckedStages(o) : new Set();
           const isCompleted = o.status === "completed";
           const p = prev[o.id];
           if (!p) { prev[o.id] = { checked, completed: isCompleted }; return; }
@@ -101,15 +103,16 @@ export default function OrderScreen() {
 
   const handleCategoryClick = (catId) => {
     setActiveCat(catId);
-    const catObj = CATEGORIES?.find(c => c.id === catId);
+    const catObj = safeCategories.find(c => c.id === catId);
     if (catObj?.subCategories?.length > 0) setActiveSubCat(catObj.subCategories[0].id);
     else setActiveSubCat(null);
   };
 
-  const activeCatObj = CATEGORIES?.find(c => c.id === activeCat);
+  const activeCatObj = safeCategories.find(c => c.id === activeCat);
   const activeSubCatObj = activeCatObj?.subCategories?.find(s => s.id === activeSubCat);
   const displayTitle = activeSubCatObj ? activeSubCatObj.label : (activeCatObj?.label || "");
 
+  // YENİ SIRALAMA MANTIĞI
   const items = useMemo(() => {
     if (!menu || !activeCatObj) return [];
     let targetDbId = activeCatObj.dbId || activeCatObj.id;
@@ -148,7 +151,8 @@ export default function OrderScreen() {
 
   const handleProductClick = (item) => {
     if (!canEdit) return toast({ variant: "destructive", title: "Yetkisiz", description: "Sadece Garson/Kasiyer girebilir." });
-    if (item.isSoldOut) return toast({ variant: "destructive", title: "Tükendi" });
+    // Orijinal isItemSoldOut fonksiyonunuz kullanılıyor
+    if (isItemSoldOut && isItemSoldOut(item)) return toast({ variant: "destructive", title: "Tükendi" });
     if (item.isSeasonalPriceOnRequest) return toast({ title: "Fiyat sorunuz" });
     if (item.hasVariations && item.variations?.length) return setVariationItem(item);
     addToCart(item);
@@ -198,7 +202,7 @@ export default function OrderScreen() {
       <div className="flex h-full flex-col">
         <div className="border-b border-border bg-card/60">
           <div className="no-scrollbar mx-auto flex max-w-7xl gap-2 overflow-x-auto px-4 py-3">
-            {CATEGORIES?.map((cat) => (
+            {safeCategories.map((cat) => (
               <button
                 key={cat.id} onClick={() => handleCategoryClick(cat.id)}
                 className={cn("select-none whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-medium transition-colors",
@@ -231,7 +235,8 @@ export default function OrderScreen() {
                 {displayTitle}
               </h2>
               <Button onClick={() => setIsCustomOpen(true)} variant="outline" size="sm" className="border-dashed border-2 border-primary text-primary hover:bg-primary/10">
-                <Edit className="w-4 h-4 mr-2" /> Özel Ürün Ekle
+                {/* İKON DÜZELTİLDİ: Edit2 */}
+                <Edit2 className="w-4 h-4 mr-2" /> Özel Ürün Ekle
               </Button>
             </div>
             
@@ -239,28 +244,33 @@ export default function OrderScreen() {
               <div className="flex h-48 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {items.map((item) => (
-                  <button key={item.id} onClick={() => handleProductClick(item)} className={cn("group select-none flex min-h-[72px] items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-all active:scale-[0.98]", item.isSoldOut ? "cursor-not-allowed border-red-500/30 opacity-50" : "hover:border-primary hover:bg-primary/5")}>
-                    <div className="flex items-center gap-3">
-                      {item.category === "A la Carte - Balık" || item.category === "Rakı" || item.category === "Şaraplar" ? (
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Waves className="h-5 w-5" /></div>
-                      ) : (
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"><Plus className="h-5 w-5" /></div>
-                      )}
-                      <div>
-                        <p className="text-[15px] font-medium leading-tight">{item.name}</p>
-                        {item.hasVariations && <p className="text-xs text-primary">Seçenekli</p>}
-                        {item.isSeasonalPriceOnRequest && <p className="text-xs text-amber-400">Fiyat sorunuz</p>}
+                {items.map((item) => {
+                  // isItemSoldOut kontrolünü güvenli yaptık
+                  const soldOut = isItemSoldOut ? isItemSoldOut(item) : item.isSoldOut;
+                  
+                  return (
+                    <button key={item.id} onClick={() => handleProductClick(item)} className={cn("group select-none flex min-h-[72px] items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-all active:scale-[0.98]", soldOut ? "cursor-not-allowed border-red-500/30 opacity-50" : "hover:border-primary hover:bg-primary/5")}>
+                      <div className="flex items-center gap-3">
+                        {item.category === "A la Carte - Balık" || item.category === "Rakı" || item.category === "Şaraplar" ? (
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Waves className="h-5 w-5" /></div>
+                        ) : (
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"><Plus className="h-5 w-5" /></div>
+                        )}
+                        <div>
+                          <p className="text-[15px] font-medium leading-tight">{item.name}</p>
+                          {item.hasVariations && <p className="text-xs text-primary">Seçenekli</p>}
+                          {item.isSeasonalPriceOnRequest && <p className="text-xs text-amber-400">Fiyat sorunuz</p>}
+                        </div>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      {item.isSoldOut ? ( <span className="rounded-lg bg-red-500/15 px-2.5 py-1 text-xs font-bold text-red-400">Tükendi</span> ) 
-                        : item.isSeasonalPriceOnRequest ? ( <span className="text-sm font-semibold text-amber-400">—</span> ) 
-                        : hidePrices ? ( <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary"><Plus className="h-4 w-4" /></div> ) 
-                        : ( <span className="text-base font-bold text-primary">{item.price?.toLocaleString("tr-TR")}<span className="block text-xs font-normal text-muted-foreground">TL</span></span> )}
-                    </div>
-                  </button>
-                ))}
+                      <div className="text-right">
+                        {soldOut ? ( <span className="rounded-lg bg-red-500/15 px-2.5 py-1 text-xs font-bold text-red-400">Tükendi</span> ) 
+                          : item.isSeasonalPriceOnRequest ? ( <span className="text-sm font-semibold text-amber-400">—</span> ) 
+                          : hidePrices ? ( <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary"><Plus className="h-4 w-4" /></div> ) 
+                          : ( <span className="text-base font-bold text-primary">{item.price?.toLocaleString("tr-TR")}<span className="block text-xs font-normal text-muted-foreground">TL</span></span> )}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
           </div>
