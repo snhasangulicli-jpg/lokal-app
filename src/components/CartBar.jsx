@@ -30,6 +30,8 @@ export default function CartBar({
 
   const handleSendClick = () => {
     onSend();
+    // OPTIMISTIC UI GÜNCELLEMESİ: Tıklanır tıklanmaz sepet penceresini kapatır!
+    setOpen(false); 
   };
 
   return (

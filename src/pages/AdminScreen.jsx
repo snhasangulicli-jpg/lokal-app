@@ -3,7 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { getMenuItems, migrateMenuToSupabase } from "@/lib/menuData";
 import { CATEGORIES } from "@/lib/menu"; 
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Database, Search, Edit2, Plus, Trash2, X } from "lucide-react";
+import { Loader2, Database, Search, Edit2, Plus, Trash2, X, ArrowUpDown } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -39,13 +39,14 @@ export default function AdminScreen() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState("add"); 
   
-  // Ürün Formu Taslağı
+  // Ürün Formu Taslağı (sort_order eklendi)
   const defaultItem = {
     id: null,
     name: "",
     category: CATEGORY_OPTIONS[0]?.id || "",
     price: "",
     stock: "",
+    sort_order: 0, // YENİ EKLENDİ
     isSoldOut: false,
     isSeasonalPriceOnRequest: false,
     hasVariations: false,
@@ -57,7 +58,9 @@ export default function AdminScreen() {
   const loadData = async () => {
     setLoading(true);
     const data = await getMenuItems();
-    setItems(data || []);
+    // Admin ekranında listelerken de sort_order'a göre diziyoruz
+    const sortedData = (data || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
+    setItems(sortedData);
     setLoading(false);
   };
 
@@ -79,6 +82,7 @@ export default function AdminScreen() {
       category: item.category,
       price: item.price,
       stock: item.stock !== null && item.stock !== undefined ? item.stock : "",
+      sort_order: item.sort_order || 0, // YENİ EKLENDİ
       isSoldOut: item.isSoldOut || false,
       isSeasonalPriceOnRequest: item.isSeasonalPriceOnRequest || false,
       hasVariations: item.hasVariations || false,
@@ -124,6 +128,7 @@ export default function AdminScreen() {
         name: currentItem.name.trim(),
         category: currentItem.category,
         price: Number(currentItem.price) || 0,
+        sort_order: Number(currentItem.sort_order) || 0, // YENİ EKLENDİ
         "isSoldOut": currentItem.isSoldOut,
         "isSeasonalPriceOnRequest": currentItem.isSeasonalPriceOnRequest,
         "hasVariations": currentItem.variations.length > 0,
@@ -243,9 +248,10 @@ export default function AdminScreen() {
         <div className="bg-card border border-border rounded-xl overflow-hidden flex-1 flex flex-col shadow-sm">
           <div className="hidden md:grid grid-cols-12 gap-2 p-4 border-b border-border bg-muted/40 font-bold text-sm text-muted-foreground">
             <div className="col-span-4">Ürün Adı & Özellik</div>
-            <div className="col-span-3">Kategori</div>
+            <div className="col-span-2">Kategori</div>
             <div className="col-span-2 text-right">Fiyat (TL)</div>
             <div className="col-span-1 text-center">Stok</div>
+            <div className="col-span-1 text-center">Sıra</div>
             <div className="col-span-2 text-right">İşlemler</div>
           </div>
 
@@ -267,7 +273,7 @@ export default function AdminScreen() {
                     </div>
                   </div>
                   
-                  <div className="col-span-1 md:col-span-3 text-sm font-medium text-muted-foreground">
+                  <div className="col-span-1 md:col-span-2 text-sm font-medium text-muted-foreground">
                     {CATEGORY_OPTIONS.find(c => c.id === item.category)?.label || item.category}
                   </div>
 
@@ -281,6 +287,10 @@ export default function AdminScreen() {
                     ) : (
                        <span className="text-muted-foreground/50">-</span>
                     )}
+                  </div>
+                  
+                  <div className="col-span-1 md:col-span-1 text-left md:text-center font-bold text-amber-600">
+                    {item.sort_order || 0}
                   </div>
 
                   <div className="col-span-1 md:col-span-2 flex justify-end gap-2">
@@ -310,14 +320,28 @@ export default function AdminScreen() {
           
           <div className="grid gap-4 py-4">
             
-            <div className="space-y-2">
-              <Label htmlFor="name">Ürün Adı *</Label>
-              <Input
-                id="name"
-                placeholder="örn. Karışık Kebap"
-                value={currentItem.name}
-                onChange={(e) => setCurrentItem({ ...currentItem, name: e.target.value })}
-              />
+            <div className="grid grid-cols-4 gap-4">
+              <div className="col-span-3 space-y-2">
+                <Label htmlFor="name">Ürün Adı *</Label>
+                <Input
+                  id="name"
+                  placeholder="örn. Karışık Kebap"
+                  value={currentItem.name}
+                  onChange={(e) => setCurrentItem({ ...currentItem, name: e.target.value })}
+                />
+              </div>
+              <div className="col-span-1 space-y-2">
+                <Label htmlFor="sort_order" className="flex items-center gap-1 text-amber-600 font-bold">
+                  <ArrowUpDown className="w-3 h-3"/> Sıra
+                </Label>
+                <Input
+                  id="sort_order"
+                  type="number"
+                  placeholder="0"
+                  value={currentItem.sort_order}
+                  onChange={(e) => setCurrentItem({ ...currentItem, sort_order: e.target.value })}
+                />
+              </div>
             </div>
             
             <div className="space-y-2">
