@@ -243,45 +243,61 @@ export default function OrderScreen() {
   const handleSend = async () => {
     if (!canEdit) return;
     if (!tableNumber.trim()) return;
+    
     setSending(true);
+
+    // --- OPTIMISTIC UI: HIZLANDIRMA BAŞLIYOR ---
+    // 1. Mevcut sepeti ve masayı arka planda hafızaya alıyoruz
+    const backupCart = [...cart];
+    const backupTable = tableNumber;
+    const backupNote = orderNote;
+    
+    // 2. İnterneti BEKLEMEDEN ekranı garson için ANINDA temizliyoruz! (Yıldırım hızı)
+    setCart([]);
+    setTableNumber("");
+    setOrderNote(""); 
+    
     try {
       const newOrder = {
         id: Date.now().toString(),
-        tableNumber: tableNumber.trim(),
-        menuType: detectMenuType(cart),
+        tableNumber: backupTable.trim(),
+        menuType: detectMenuType(backupCart),
         waiterName: user?.name || "Bilinmeyen Garson",
         currentStage: 0,
         stageTimestamps: { 0: new Date().toISOString() },
-        items: cart.map((c) => ({
+        items: backupCart.map((c) => ({
           name: c.name,
           variationLabel: c.variationLabel || "",
           quantity: c.quantity,
           unitPrice: c.unitPrice,
           totalPrice: c.totalPrice,
         })),
-        totalAmount: cart.reduce((s, c) => s + c.totalPrice, 0),
+        totalAmount: backupCart.reduce((s, c) => s + c.totalPrice, 0),
         status: "pending",
         created_date: new Date().toISOString(),
-        note: orderNote.trim() || null, 
+        note: backupNote.trim() || null, 
       };
 
+      // 3. Arka planda veritabanına gönderiliyor
       const { error } = await supabase.from("orders").insert([newOrder]);
       if (error) throw error;
 
       toast({
         title: "Sipariş mutfağa gönderildi ✓",
-        description: `Masa ${tableNumber.trim()} — ${cart.reduce((s, c) => s + c.quantity, 0)} ürün.`,
+        description: `Masa ${backupTable.trim()} — ${backupCart.reduce((s, c) => s + c.quantity, 0)} ürün.`,
       });
       
-      setCart([]);
-      setTableNumber("");
-      setOrderNote(""); 
     } catch (e) {
       console.error("Sipariş Gönderme Hatası:", e);
+      // EĞER internet koparsa veya hata olursa, anında sildiğimiz sepeti garsona geri veriyoruz (Zırh)
+      setCart(backupCart);
+      setTableNumber(backupTable);
+      setOrderNote(backupNote);
+      
       toast({ 
         variant: "destructive", 
         title: "Gönderilemedi", 
-        description: e?.message || e?.details || "Bir hata oluştu." 
+        description: "İnternet bağlantınızı kontrol edip tekrar deneyin." 
       });
     } finally {
       setSending(false);
