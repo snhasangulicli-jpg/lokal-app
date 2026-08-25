@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import OrderKanbanCard from "@/components/OrderKanbanCard";
@@ -7,7 +7,7 @@ import { getMenuItems } from "@/lib/menuData";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { Loader2, Printer } from "lucide-react";
-import { printReceipt } from "@/lib/printer"; // YAZICI MOTORUNU ÇAĞIRDIK
+import { printReceipt } from "@/lib/printer";
 
 export default function KitchenScreen() {
   const { toast } = useToast();
@@ -21,10 +21,6 @@ export default function KitchenScreen() {
 
   const soldOutNames = useMemo(() => buildSoldOutNames(menu), [menu]);
 
-  // OTOMATİK YAZDIRMA BEYNİ İÇİN HAFIZA
-  const seenOrders = useRef(new Set()); 
-  const isFirstLoad = useRef(true);
-
   const loadOrders = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -37,26 +33,36 @@ export default function KitchenScreen() {
       
       const fetchedOrders = data || [];
 
-      // OTOMATİK YAZDIRMA MANTIĞI
-      if (isFirstLoad.current) {
-        // Sayfa ilk açıldığında bekleyen siparişlerin hepsini hafızaya al (Eski siparişleri tekrar tekrar basmamak için)
-        seenOrders.current = new Set(fetchedOrders.map(o => o.id));
-        isFirstLoad.current = false;
+      // OTOMATİK YAZDIRMA BEYNİ (Kalıcı Hafızalı)
+      const printedOrders = JSON.parse(localStorage.getItem("printed_orders") || "[]");
+      let hasNewPrint = false;
+
+      // Eğer sistem ilk defa kuruluyorsa (hafıza boşsa), mevcut siparişleri yazdırılmış say (Makineyi kağıda boğmamak için)
+      if (printedOrders.length === 0 && fetchedOrders.length > 0) {
+        const allIds = fetchedOrders.map(o => o.id);
+        localStorage.setItem("printed_orders", JSON.stringify(allIds));
       } else {
-        // Sayfa açıkken 5 saniyede bir kontrol edildiğinde:
+        // Normal işleyiş: Gelen siparişlere bak, hafızada (yazdırılanlarda) yoksa YAZDIR!
         fetchedOrders.forEach(o => {
-          if (!seenOrders.current.has(o.id)) {
-            seenOrders.current.add(o.id);
-            // SADECE YENİ SİPARİŞSE YAZICIYI ATEŞLE!
+          if (!printedOrders.includes(o.id)) {
+            printedOrders.push(o.id);
             printReceipt(o, "KITCHEN");
-            toast({ title: `Masa ${o.tableNumber} fişi yazdırıldı 🖨️` });
+            toast({ title: `Masa ${o.tableNumber} YENİ SİPARİŞ! 🖨️` });
+            hasNewPrint = true;
           }
         });
+
+        // Yeni bir şey yazdırıldıysa hafızayı kaydet
+        if (hasNewPrint) {
+          // Hafıza şişmesin diye son 1000 fişi aklında tutar
+          if (printedOrders.length > 1000) printedOrders.splice(0, printedOrders.length - 1000);
+          localStorage.setItem("printed_orders", JSON.stringify(printedOrders));
+        }
       }
 
       setOrders(fetchedOrders);
     } catch (e) {
-      console.error("Siparişler yüklenirken hata oluştu:", e);
+      console.error("Siparişler yüklenirken hata:", e);
       setOrders([]);
     }
   }, [toast]);
@@ -66,7 +72,7 @@ export default function KitchenScreen() {
       const fetchedMenu = await getMenuItems(); 
       setMenu(fetchedMenu || []);
     } catch (e) {
-      console.error("Menü çekme hatası:", e);
+      console.error("Menü hatası:", e);
       setMenu([]);
     }
   }, []);
@@ -75,28 +81,23 @@ export default function KitchenScreen() {
     loadOrders();
     loadMenu();
 
+    // HER 3 SANİYEDE BİR YENİ SİPARİŞ VAR MI DİYE KONTROL EDER
     const interval = setInterval(() => {
       loadOrders();
-      loadMenu(); 
-    }, 5000);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [loadOrders, loadMenu]);
 
   const handleToggleStage = async (order, stage) => {
-    if (!canEdit) {
-      return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Sipariş aşamalarını sadece Mutfak personeli değiştirebilir." });
-    }
+    if (!canEdit) return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Sadece mutfak işlem yapabilir." });
 
     setBusyId(order.id);
     const ts = order.stageTimestamps || {};
     const isSet = !!ts[stage];
     const nextTs = { ...ts };
-    if (isSet) {
-      delete nextTs[stage];
-    } else {
-      nextTs[stage] = new Date().toISOString();
-    }
+    if (isSet) delete nextTs[stage];
+    else nextTs[stage] = new Date().toISOString();
 
     const updates = { stageTimestamps: nextTs };
 
@@ -111,29 +112,23 @@ export default function KitchenScreen() {
       const { error } = await supabase.from("orders").update(updates).eq("id", order.id);
       if (error) throw error;
       await loadOrders();
-
-      if (updates.status === "completed") {
-        toast({ title: `Masa ${order.tableNumber} tamamlandı ✓` });
-      }
+      if (updates.status === "completed") toast({ title: `Masa ${order.tableNumber} tamamlandı ✓` });
     } catch (e) {
-      toast({ variant: "destructive", title: "Güncellenmedi", description: "Lütfen tekrar deneyin." });
+      toast({ variant: "destructive", title: "Hata", description: "Güncellenemedi." });
     } finally {
       setBusyId(null);
     }
   };
 
   const handleComplete = async (order) => {
-    if (!canEdit) return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Siparişi sadece Mutfak personeli tamamlayabilir." });
+    if (!canEdit) return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Sadece mutfak işlem yapabilir." });
     
     setBusyId(order.id);
     const updates = {
       status: "completed",
       completedAt: new Date().toISOString(),
       currentStage: 8,
-      stageTimestamps: {
-        ...(order.stageTimestamps || {}),
-        8: new Date().toISOString(),
-      },
+      stageTimestamps: { ...(order.stageTimestamps || {}), 8: new Date().toISOString() },
     };
 
     try {
@@ -142,13 +137,12 @@ export default function KitchenScreen() {
       await loadOrders();
       toast({ title: `Masa ${order.tableNumber} servise hazır ✓` });
     } catch (e) {
-      toast({ variant: "destructive", title: "Güncellenmedi", description: "Lütfen tekrar deneyin." });
+      toast({ variant: "destructive", title: "Hata", description: "Güncellenemedi." });
     } finally {
       setBusyId(null);
     }
   };
 
-  // MANUEL OLARAK KARTTAKİ BİR SİPARİŞİ TEKRAR YAZDIRMA (Kağıt biterse vs.)
   const handleReprint = (order) => {
     printReceipt(order, "KITCHEN");
     toast({ title: `Masa ${order.tableNumber} tekrar yazdırılıyor...` });
@@ -162,7 +156,7 @@ export default function KitchenScreen() {
             <div>
               <h1 className="text-xl font-bold tracking-tight">Mutfak Ekranı</h1>
               <p className="text-xs text-muted-foreground">
-                Aktif siparişler — yeni sipariş geldiğinde fiş otomatik yazdırılır.
+                Garson siparişi gönderdiği an fiş otomatik kesilir.
               </p>
             </div>
             <div className="flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5">
@@ -216,7 +210,6 @@ export default function KitchenScreen() {
                       </div>
                     )}
                     
-                    {/* TEKRAR YAZDIR BUTONU (Mobilde gizli, masaüstünde hover ile görünür veya hep görünür) */}
                     <div className="flex justify-end px-1">
                       <button 
                         onClick={() => handleReprint(order)}
