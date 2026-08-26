@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 export default function TableCard({ table, onClose }) {
   const { toast } = useToast();
@@ -30,7 +31,6 @@ export default function TableCard({ table, onClose }) {
   const fetchOrders = async () => {
     setLoadingOrders(true);
     try {
-      // HATA BURADAYDI: Sadece pending (mutfakta olan) siparişleri getir diyorduk, kaldırdık!
       const { data, error } = await supabase
         .from("orders")
         .select("*")
@@ -38,8 +38,8 @@ export default function TableCard({ table, onClose }) {
         
       if (error) throw error;
       
-      // Sadece hesabı henüz tamamen ödenip kapanmamış siparişleri filtrele
-      const activeOrders = (data || []).filter(o => o.paymentStatus !== "paid");
+      // Masaya ait aktif (iptal edilmemiş ve ödenmemiş) siparişleri getir
+      const activeOrders = (data || []).filter(o => o.status !== "cancelled" && o.paymentStatus !== "paid");
       setRawOrders(activeOrders);
     } catch (e) {
       toast({ variant: "destructive", title: "Hata", description: "Adisyon detayları çekilemedi." });
@@ -77,7 +77,7 @@ export default function TableCard({ table, onClose }) {
     }
   };
 
-  // 2. ÜRÜN SİLME (ÖRN: FIX MENÜYÜ İPTAL EDİP A LA CARTE'A GEÇİŞ İÇİN)
+  // 2. ÜRÜN SİLME (ÖRN: FIX MENÜYÜ İPTAL EDİp A LA CARTE'A GEÇİŞ İÇİN)
   const handleDeleteItem = async (order, itemIdx) => {
     const item = order.items[itemIdx];
     if (!window.confirm(`DİKKAT: "${item.name}" adlı ürünü hesaptan tamamen silmek istediğinize emin misiniz?`)) return;
@@ -110,7 +110,7 @@ export default function TableCard({ table, onClose }) {
         id: Date.now().toString(),
         tableNumber: table.tableNumber,
         waiterName: "Kasa (Düzenleme)",
-        status: "completed", // DÜZELTİLDİ: "pending" yaparsak mutfak fiş çıkarır. "completed" yapıyoruz ki sadece kasada görünsün.
+        status: "completed", // "completed" yapıyoruz ki mutfak fiş çıkarmasın, sadece kasada görünsün.
         currentStage: 8,
         items: [{
           name: numPrice < 0 ? `⬇ İNDİRİM: ${newRowName.trim()}` : `➕ ${newRowName.trim()}`,
@@ -136,42 +136,44 @@ export default function TableCard({ table, onClose }) {
 
   return (
     <>
-      <div className="flex flex-col rounded-2xl border border-border bg-card p-4 shadow-sm hover:shadow-md transition-shadow relative">
+      <div className="flex flex-col rounded-2xl border border-border bg-card p-5 shadow-sm hover:shadow-md transition-shadow relative">
         
         {/* ÜST BİLGİ VE DÜZENLE BUTONU */}
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
-              <span className="text-sm font-bold">M{table.tableNumber}</span>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary font-black text-base shadow-sm">
+              M{table.tableNumber}
             </div>
             <div>
-              <p className="text-sm font-semibold">Masa {table.tableNumber}</p>
-              <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                <Users className="h-3 w-3" /> {table.orderCount} sipariş
+              <p className="text-base font-bold">Masa {table.tableNumber}</p>
+              <p className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                <Users className="h-3.5 w-3.5" /> {table.orderCount} aktif sipariş
               </p>
             </div>
           </div>
           
-          <button 
+          <Button 
+            variant="outline"
+            size="sm"
             onClick={handleOpenEdit}
-            className="flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-600 hover:bg-amber-500/20 transition-colors"
+            className="rounded-xl border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 hover:text-amber-700 font-bold h-9 px-3"
           >
-            <PencilLine className="h-3.5 w-3.5" /> Adisyonu Düzenle
-          </button>
+            <PencilLine className="h-4 w-4 mr-1.5" /> Adisyonu Düzenle
+          </Button>
         </div>
 
         {/* ANA KART ÜZERİNDEKİ ÜRÜN LİSTESİ */}
-        <div className="min-h-0 flex-1 space-y-1">
+        <div className="min-h-0 flex-1 space-y-2 mb-4">
           {table.items.map((item, i) => {
             const isZero = item.totalPrice === 0;
             const isDiscount = item.totalPrice < 0;
             return (
-              <div key={i} className={`flex items-center justify-between text-sm ${isZero ? 'text-amber-500 font-bold' : isDiscount ? 'text-emerald-500 font-bold' : ''}`}>
+              <div key={i} className={`flex items-center justify-between text-sm p-2 rounded-xl bg-secondary/30 border border-border/40 ${isZero ? 'text-amber-500 font-bold' : isDiscount ? 'text-emerald-600 font-bold' : ''}`}>
                 <span className="truncate pr-2">
-                  <span className="font-bold mr-1">{item.quantity}×</span> {item.name}
-                  {item.variationLabel ? <span className="text-muted-foreground text-xs block truncate ml-4">- {item.variationLabel}</span> : ""}
+                  <Badge variant="outline" className="mr-1.5 font-bold">{item.quantity}x</Badge> {item.name}
+                  {item.variationLabel ? <span className="text-muted-foreground text-xs block truncate ml-6">- {item.variationLabel}</span> : ""}
                 </span>
-                <span className="shrink-0 font-medium">
+                <span className="shrink-0 font-bold">
                   {item.totalPrice.toLocaleString("tr-TR")} TL
                 </span>
               </div>
@@ -180,77 +182,77 @@ export default function TableCard({ table, onClose }) {
         </div>
 
         {/* ALT TOPLAM VE KAPATMA BUTONLARI */}
-        <div className="mt-4 border-t border-border pt-3">
+        <div className="border-t border-border pt-4">
           <div className="mb-3 flex items-center justify-between">
-            <span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
+            <span className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground">
               <Receipt className="h-4 w-4" /> Genel Toplam
             </span>
-            <span className="text-lg font-black text-primary">
+            <span className="text-xl font-black text-primary">
               {table.totalAmount.toLocaleString("tr-TR")} TL
             </span>
           </div>
           
-          <div className="flex gap-2">
-            <button
+          <div className="flex gap-2.5">
+            <Button
+              variant="outline"
               onClick={handlePrint}
-              className="flex items-center justify-center gap-2 rounded-xl border border-border bg-secondary/30 px-4 py-2.5 text-sm font-bold text-foreground transition-colors hover:bg-secondary active:scale-[0.98]"
-              title="Müşteri Adisyonu Yazdır"
+              className="flex-1 rounded-xl h-11 font-bold border-border bg-secondary/30 hover:bg-secondary"
             >
-              <Printer className="h-4 w-4" /> Yazdır
-            </button>
+              <Printer className="h-4 w-4 mr-2" /> Yazdır
+            </Button>
             
-            <button
+            <Button
               onClick={() => onClose(table)}
-              className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-bold text-primary-foreground transition-colors hover:bg-primary/90 active:scale-[0.98]"
+              className="flex-1 rounded-xl h-11 font-bold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20"
             >
               Hesabı Kapat
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
       {/* KASİYER ADİSYON DÜZENLEME MODALI */}
       <Dialog open={isEditOpen} onOpenChange={(val) => { setIsEditOpen(val); setShowAddRow(false); }}>
-        <DialogContent className="sm:max-w-md bg-card border-border max-h-[90vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-md bg-card border-border max-h-[90vh] overflow-y-auto rounded-3xl p-6">
           <DialogHeader>
-            <DialogTitle>Adisyon Detayı — Masa {table.tableNumber}</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-xl font-bold">Adisyon Detayı — Masa {table.tableNumber}</DialogTitle>
+            <DialogDescription className="text-sm">
               Ürünlerin fiyatlarını değiştirebilir, silebilir veya hesaba yeni indirim satırı ekleyebilirsiniz.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-2">
             {loadingOrders ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Ürünler yükleniyor...</p>
+              <p className="text-sm text-muted-foreground text-center py-6">Ürünler yükleniyor...</p>
             ) : (
               <div className="space-y-3">
                 {rawOrders.map((order) => (
-                  <div key={order.id} className="space-y-1 border-b border-border pb-3">
+                  <div key={order.id} className="space-y-2 border-b border-border pb-3">
                     {order.items.map((item, idx) => (
-                      <div key={idx} className="flex items-center justify-between bg-secondary/20 p-2 rounded-lg border border-border/50">
+                      <div key={idx} className="flex items-center justify-between bg-secondary/40 p-3 rounded-2xl border border-border/60 shadow-sm">
                         <div className="flex-1 pr-2">
-                          <p className="text-sm font-semibold leading-tight">
+                          <p className="text-sm font-bold leading-tight">
                             {item.quantity}x {item.name}
                           </p>
-                          <p className={`text-xs font-bold mt-0.5 ${item.unitPrice === 0 ? 'text-amber-500' : 'text-primary'}`}>
+                          <p className={`text-xs font-black mt-1 ${item.unitPrice === 0 ? 'text-amber-500' : 'text-primary'}`}>
                             {item.totalPrice} TL
                           </p>
                         </div>
                         
-                        <div className="flex gap-1">
+                        <div className="flex gap-1.5">
                           <Button 
-                            variant="outline" 
+                            variant="secondary" 
                             size="icon" 
-                            className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-500/10"
+                            className="h-9 w-9 rounded-xl text-amber-600 hover:bg-amber-500/20"
                             onClick={() => handleUpdatePrice(order, idx)}
                             title="Fiyatı Değiştir"
                           >
                             <Edit2 className="h-4 w-4" />
                           </Button>
                           <Button 
-                            variant="outline" 
+                            variant="secondary" 
                             size="icon" 
-                            className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            className="h-9 w-9 rounded-xl text-destructive hover:bg-destructive/20"
                             onClick={() => handleDeleteItem(order, idx)}
                             title="Ürünü Sil"
                           >
@@ -268,36 +270,36 @@ export default function TableCard({ table, onClose }) {
             {!showAddRow ? (
               <Button 
                 variant="outline" 
-                className="w-full border-dashed border-2" 
+                className="w-full h-12 rounded-2xl border-dashed border-2 font-bold" 
                 onClick={() => setShowAddRow(true)}
               >
                 <Plus className="w-4 h-4 mr-2" /> Yeni Satır / İndirim Ekle
               </Button>
             ) : (
-              <div className="bg-amber-500/5 border border-amber-500/20 p-3 rounded-xl space-y-3 mt-4">
+              <div className="bg-amber-500/5 border border-amber-500/20 p-4 rounded-2xl space-y-3 mt-4">
                 <p className="text-xs font-bold text-amber-600 uppercase tracking-wider">Adisyona Satır Ekle</p>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Açıklama</Label>
+                  <Label className="text-xs font-bold">Açıklama</Label>
                   <Input 
                     placeholder="Örn: Fix Menü İndirimi" 
                     value={newRowName} 
                     onChange={(e) => setNewRowName(e.target.value)} 
-                    className="h-9"
+                    className="h-11 rounded-xl"
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs">Tutar (TL) — <span className="font-bold text-destructive">İndirim için başa (-) koyun</span></Label>
+                  <Label className="text-xs font-bold">Tutar (TL) — <span className="text-destructive">İndirim için başa (-) koyun</span></Label>
                   <Input 
                     type="number" 
                     placeholder="Örn: -400" 
                     value={newRowPrice} 
                     onChange={(e) => setNewRowPrice(e.target.value)} 
-                    className="h-9"
+                    className="h-11 rounded-xl"
                   />
                 </div>
-                <div className="flex justify-end gap-2 pt-1">
+                <div className="flex justify-end gap-2 pt-2">
                   <Button variant="ghost" size="sm" onClick={() => setShowAddRow(false)}>İptal</Button>
-                  <Button size="sm" onClick={handleAddRow} disabled={addingRow}>
+                  <Button size="sm" onClick={handleAddRow} disabled={addingRow} className="rounded-xl font-bold">
                     {addingRow ? "Ekleniyor..." : "Hesaba Ekle"}
                   </Button>
                 </div>
