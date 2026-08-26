@@ -14,6 +14,26 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
+// --- GÖZLÜK GEREKTirmeyen GÖRSEL RENK KODLAMASI ---
+// Ürün ismine göre sol tarafa renkli şerit ekler (Garsonlar renklerden tanır)
+const getItemColorAccent = (itemName) => {
+  const name = (itemName || "").toLowerCase();
+  
+  if (name.includes("su") || name.includes("kola") || name.includes("fanta") || name.includes("sprite") || name.includes("ayran") || name.includes("şalgam") || name.includes("meyve suyu") || name.includes("bira") || name.includes("şarap") || name.includes("rakı")) {
+    return "border-l-4 border-l-blue-500 bg-blue-500/[0.03]"; // İçecekler Mavi
+  }
+  if (name.includes("balık") || name.includes("balik") || name.includes("levrek") || name.includes("çipura") || name.includes("kalamar") || name.includes("karides")) {
+    return "border-l-4 border-l-cyan-500 bg-cyan-500/[0.03]"; // Balıklar Turkuaz
+  }
+  if (name.includes("kebap") || name.includes("et") || name.includes("tavuk") || name.includes("pirzola") || name.includes("köfte")) {
+    return "border-l-4 border-l-red-500 bg-red-500/[0.03]"; // Etler Kırmızı
+  }
+  if (name.includes("meze") || name.includes("salata") || name.includes("humus") || name.includes("ezme") || name.includes("peynir")) {
+    return "border-l-4 border-l-emerald-500 bg-emerald-500/[0.03]"; // Mezeler Yeşil
+  }
+  return "border-l-4 border-l-primary/40"; // Diğerleri standart
+};
+
 const detectMenuType = (cartItems) => {
   const fixMenu = (cartItems || []).find((item) => item.name && item.name.includes("Fix Menü"));
   if (!fixMenu) return "individual";
@@ -165,7 +185,7 @@ export default function OrderScreen() {
 
     return menu
       .filter((m) => m.category?.trim() === targetDbId?.trim())
-      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)); // SIRALAMA EKLENDİ
+      .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)); 
   }, [menu, activeCat, activeSubCat]);
 
   const addToCart = (item, variation = null) => {
@@ -187,7 +207,6 @@ export default function OrderScreen() {
     });
   };
 
-  // ÖZEL ÜRÜN EKLEME FONKSİYONU
   const submitCustomItem = () => {
     if (!customItem.name.trim()) return;
     addToCart({ name: `*ÖZEL* ${customItem.name.trim()}`, price: Number(customItem.price) || 0 });
@@ -246,13 +265,10 @@ export default function OrderScreen() {
     
     setSending(true);
 
-    // --- OPTIMISTIC UI: HIZLANDIRMA BAŞLIYOR ---
-    // 1. Mevcut sepeti ve masayı arka planda hafızaya alıyoruz
     const backupCart = [...cart];
     const backupTable = tableNumber;
     const backupNote = orderNote;
     
-    // 2. İnterneti BEKLEMEDEN ekranı garson için ANINDA temizliyoruz! (Yıldırım hızı)
     setCart([]);
     setTableNumber("");
     setOrderNote(""); 
@@ -278,7 +294,6 @@ export default function OrderScreen() {
         note: backupNote.trim() || null, 
       };
 
-      // 3. Arka planda veritabanına gönderiliyor
       const { error } = await supabase.from("orders").insert([newOrder]);
       if (error) throw error;
 
@@ -289,7 +304,6 @@ export default function OrderScreen() {
       
     } catch (e) {
       console.error("Sipariş Gönderme Hatası:", e);
-      // EĞER internet koparsa veya hata olursa, anında sildiğimiz sepeti garsona geri veriyoruz (Zırh)
       setCart(backupCart);
       setTableNumber(backupTable);
       setOrderNote(backupNote);
@@ -367,58 +381,58 @@ export default function OrderScreen() {
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {items.map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => handleProductClick(item)}
-                    className={cn(
-                      "group select-none flex min-h-[72px] items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-all active:scale-[0.98]",
-                      isItemSoldOut(item)
-                        ? "cursor-not-allowed border-red-500/30 opacity-50"
-                        : "hover:border-primary hover:bg-primary/5"
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      {item.category === "A la Carte - Balık" || item.category === "Rakı" || item.category === "Şaraplar" ? (
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                          <Waves className="h-5 w-5" />
-                        </div>
-                      ) : (
+                {items.map((item) => {
+                  // GÜVENLİ VE RİSKSİZ RENK ŞERİDİ UYGULAMASI
+                  const colorAccent = getItemColorAccent(item.name);
+
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleProductClick(item)}
+                      className={cn(
+                        "group select-none flex min-h-[72px] items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-left transition-all active:scale-[0.98]",
+                        colorAccent,
+                        isItemSoldOut(item)
+                          ? "cursor-not-allowed border-red-500/30 opacity-50"
+                          : "hover:border-primary hover:bg-primary/5"
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
                         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary">
                           <Plus className="h-5 w-5" />
                         </div>
-                      )}
-                      <div>
-                        <p className="text-[15px] font-medium leading-tight">{item.name}</p>
-                        {item.hasVariations && (
-                          <p className="text-xs text-primary">Seçenekli</p>
-                        )}
-                        {item.isSeasonalPriceOnRequest && (
-                          <p className="text-xs text-amber-400">Fiyat sorunuz</p>
+                        <div>
+                          <p className="text-[15px] font-medium leading-tight">{item.name}</p>
+                          {item.hasVariations && (
+                            <p className="text-xs text-primary">Seçenekli</p>
+                          )}
+                          {item.isSeasonalPriceOnRequest && (
+                            <p className="text-xs text-amber-400">Fiyat sorunuz</p>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="text-right">
+                        {isItemSoldOut(item) ? (
+                          <span className="rounded-lg bg-red-500/15 px-2.5 py-1 text-xs font-bold text-red-400">
+                            Tükendi
+                          </span>
+                        ) : item.isSeasonalPriceOnRequest ? (
+                          <span className="text-sm font-semibold text-amber-400">—</span>
+                        ) : hidePrices ? (
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary">
+                            <Plus className="h-4 w-4" />
+                          </div>
+                        ) : (
+                          <span className="text-base font-bold text-primary">
+                            {item.price?.toLocaleString("tr-TR")}
+                            <span className="block text-xs font-normal text-muted-foreground">TL</span>
+                          </span>
                         )}
                       </div>
-                    </div>
-                    
-                    <div className="text-right">
-                      {isItemSoldOut(item) ? (
-                        <span className="rounded-lg bg-red-500/15 px-2.5 py-1 text-xs font-bold text-red-400">
-                          Tükendi
-                        </span>
-                      ) : item.isSeasonalPriceOnRequest ? (
-                        <span className="text-sm font-semibold text-amber-400">—</span>
-                      ) : hidePrices ? (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary">
-                          <Plus className="h-4 w-4" />
-                        </div>
-                      ) : (
-                        <span className="text-base font-bold text-primary">
-                          {item.price?.toLocaleString("tr-TR")}
-                          <span className="block text-xs font-normal text-muted-foreground">TL</span>
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
                 {items.length === 0 && (
                   <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
                     Bu kategoride ürün bulunamadı.
