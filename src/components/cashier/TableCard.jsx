@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Receipt, Users, Printer, PencilLine, Trash2, Edit2, Plus, Minus } from "lucide-react";
+import { Receipt, Users, Printer, PencilLine, Trash2, Edit2, Plus } from "lucide-react";
 import { printReceipt } from "@/lib/printer";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
@@ -30,14 +30,17 @@ export default function TableCard({ table, onClose }) {
   const fetchOrders = async () => {
     setLoadingOrders(true);
     try {
+      // HATA BURADAYDI: Sadece pending (mutfakta olan) siparişleri getir diyorduk, kaldırdık!
       const { data, error } = await supabase
         .from("orders")
         .select("*")
-        .eq("tableNumber", table.tableNumber)
-        .eq("status", "pending")
-        .order("created_date", { ascending: true });
+        .eq("tableNumber", table.tableNumber);
+        
       if (error) throw error;
-      setRawOrders(data || []);
+      
+      // Sadece hesabı henüz tamamen ödenip kapanmamış siparişleri filtrele
+      const activeOrders = (data || []).filter(o => o.paymentStatus !== "paid");
+      setRawOrders(activeOrders);
     } catch (e) {
       toast({ variant: "destructive", title: "Hata", description: "Adisyon detayları çekilemedi." });
     } finally {
@@ -107,7 +110,7 @@ export default function TableCard({ table, onClose }) {
         id: Date.now().toString(),
         tableNumber: table.tableNumber,
         waiterName: "Kasa (Düzenleme)",
-        status: "pending", 
+        status: "completed", // DÜZELTİLDİ: "pending" yaparsak mutfak fiş çıkarır. "completed" yapıyoruz ki sadece kasada görünsün.
         currentStage: 8,
         items: [{
           name: numPrice < 0 ? `⬇ İNDİRİM: ${newRowName.trim()}` : `➕ ${newRowName.trim()}`,
