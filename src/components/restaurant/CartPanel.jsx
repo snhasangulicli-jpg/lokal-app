@@ -1,5 +1,9 @@
 import React from 'react';
-import { X, Plus, Minus, Trash2, Send, MapPin } from 'lucide-react';
+import { X, Plus, Minus, Trash2, Send, MapPin, ShoppingCart } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 
 export default function CartPanel({
   cart,
@@ -12,127 +16,159 @@ export default function CartPanel({
   onSend,
   sending,
   onClose,
-  hidePrices // <--- Fiyatları gizleme komutu eklendi
+  hidePrices // <--- Fiyatları gizleme komutu
 }) {
-  const canSend = cart.length > 0 && tableNumber.trim();
+  const safeCart = cart || [];
+  const canSend = safeCart.length > 0 && String(tableNumber || "").trim();
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
       <div
-        className="bg-white w-full max-w-md h-full flex flex-col shadow-2xl"
+        className="bg-card text-card-foreground w-full max-w-md h-full flex flex-col shadow-2xl border-l border-border animate-in slide-in-from-right duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-navy px-5 py-4 flex items-center justify-between">
+        <div className="bg-primary/10 px-6 py-4 flex items-center justify-between border-b border-border/50">
           <div>
-            <h2 className="text-white font-bold text-lg">Sepet</h2>
-            <p className="text-slate-400 text-xs">{cart.length} farklı ürün</p>
+            <h2 className="text-foreground font-bold text-xl">Sepet Özeti</h2>
+            <p className="text-muted-foreground text-xs font-semibold">{safeCart.length} farklı ürün</p>
           </div>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/10 transition-colors">
-            <X className="w-5 h-5 text-white" />
+          <button 
+            onClick={onClose} 
+            className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Table number input */}
-        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
-          <label className="flex items-center gap-2 text-slate-600 font-semibold text-sm mb-2">
-            <MapPin className="w-4 h-4 text-ocean" />
-            Masa Numarası (Zorunlu)
-          </label>
-          <input
+        {/* Masa Numarası Seçimi (Sabit 8 Masa Butonu + Manuel Giriş) */}
+        <div className="px-6 py-4 border-b border-border/60 bg-secondary/20 space-y-3">
+          <Label className="flex items-center gap-2 text-foreground font-bold text-xs uppercase tracking-wider">
+            <MapPin className="w-4 h-4 text-primary" />
+            Masa Seçimi (Zorunlu)
+          </Label>
+          
+          {/* Sabit 8 Masa Butonu */}
+          <div className="grid grid-cols-4 gap-2">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
+              <Button
+                key={num}
+                type="button"
+                variant={String(tableNumber) === String(num) ? "default" : "outline"}
+                onClick={() => setTableNumber && setTableNumber(String(num))}
+                className={`h-11 rounded-xl text-base font-bold transition-all ${
+                  String(tableNumber) === String(num)
+                    ? "bg-primary text-primary-foreground shadow-md shadow-primary/20 border-primary"
+                    : "bg-background hover:bg-secondary border-border"
+                }`}
+              >
+                M{num}
+              </Button>
+            ))}
+          </div>
+
+          <Input
             type="text"
-            value={tableNumber}
-            onChange={(e) => setTableNumber(e.target.value)}
-            placeholder="Örn: 5"
-            className="w-full border-2 border-slate-200 focus:border-ocean rounded-xl px-4 py-3 font-bold text-lg focus:outline-none bg-white"
+            value={tableNumber || ""}
+            onChange={(e) => setTableNumber && setTableNumber(e.target.value)}
+            placeholder="Veya diğer masa (Örn: 14, Bahçe 2)"
+            className="w-full bg-background border-border rounded-xl px-4 py-2.5 font-bold text-sm h-11"
           />
         </div>
 
-        {/* Cart items */}
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {cart.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-slate-400">
-              <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center mb-3">
-                <Plus className="w-8 h-8 text-slate-300" />
+        {/* Sepet Ürünleri Listesi */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-thin space-y-3">
+          {safeCart.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+              <div className="w-16 h-16 rounded-3xl bg-secondary flex items-center justify-center mb-3 shadow-sm">
+                <ShoppingCart className="w-8 h-8 text-muted-foreground/40" />
               </div>
-              <p className="font-semibold">Sepet boş</p>
-              <p className="text-sm">Menüden ürün ekleyin</p>
+              <p className="font-bold text-base text-foreground">Sepet boş</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Menüden ürün ekleyin</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {cart.map((item) => (
-                <div key={item.key} className="flex items-center gap-3 bg-white border border-slate-100 shadow-sm rounded-xl p-3">
+            <div className="space-y-2.5">
+              {safeCart.map((item) => (
+                <div key={item.key} className="flex items-center gap-3 bg-background border border-border/60 shadow-sm rounded-2xl p-3.5">
                   <div className="flex-1">
-                    <p className="font-bold text-slate-800 text-sm leading-tight">{item.name}</p>
+                    <p className="font-bold text-foreground text-sm leading-tight">{item.name}</p>
                     {item.variationLabel && (
-                      <p className="text-xs text-slate-500 mt-0.5">{item.variationLabel}</p>
+                      <Badge variant="secondary" className="mt-1 text-[10px] px-2 py-0">
+                        {item.variationLabel}
+                      </Badge>
                     )}
                     
-                    {/* FİYAT GÖSTERİMİ */}
                     {!hidePrices && (
-                      <p className="text-ocean font-bold text-sm mt-1">
-                        {(item.unitPrice * item.quantity).toLocaleString('tr-TR')} TL
+                      <p className="text-primary font-bold text-xs mt-1">
+                        {((item.unitPrice ?? 0) * (item.quantity ?? 1)).toLocaleString('tr-TR')} TL
                       </p>
                     )}
                   </div>
                   
-                  {/* Butonlar */}
-                  <div className="flex items-center gap-1.5 bg-slate-50 rounded-lg border border-slate-200 p-1">
-                    <button
-                      onClick={() => onQty(item.key, -1)}
-                      className="w-7 h-7 rounded-md bg-white hover:bg-slate-200 flex items-center justify-center transition-colors shadow-sm"
+                  {/* Miktar Artırma / Azaltma Butonları */}
+                  <div className="flex items-center gap-1 bg-secondary/60 rounded-xl border border-border/50 p-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => onQty && onQty(item.key, -1)}
+                      className="w-7 h-7 rounded-lg hover:bg-background"
                     >
-                      <Minus className="w-4 h-4 text-slate-600" />
-                    </button>
-                    <span className="font-bold text-slate-800 w-6 text-center">{item.quantity}</span>
-                    <button
-                      onClick={() => onQty(item.key, 1)}
-                      className="w-7 h-7 rounded-md bg-ocean/10 hover:bg-ocean/20 flex items-center justify-center transition-colors"
+                      <Minus className="w-3.5 h-3.5 text-muted-foreground" />
+                    </Button>
+                    <span className="font-bold text-foreground w-6 text-center text-sm">{item.quantity}</span>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => onQty && onQty(item.key, 1)}
+                      className="w-7 h-7 rounded-lg hover:bg-background bg-primary/10 text-primary"
                     >
-                      <Plus className="w-4 h-4 text-ocean" />
-                    </button>
+                      <Plus className="w-3.5 h-3.5 text-primary" />
+                    </Button>
                   </div>
                   
-                  <button
-                    onClick={() => onRemove(item.key)}
-                    className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors ml-1"
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => onRemove && onRemove(item.key)}
+                    className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded-xl ml-1"
                   >
                     <Trash2 className="w-4 h-4" />
-                  </button>
+                  </Button>
                 </div>
               ))}
               
-              <button
+              <Button
+                variant="ghost"
                 onClick={onClear}
-                className="w-full text-center text-sm text-slate-400 hover:text-red-500 font-medium py-3 transition-colors mt-2"
+                className="w-full text-center text-xs text-muted-foreground hover:text-destructive font-semibold py-2 transition-colors mt-2"
               >
-                Tümünü Sil
-              </button>
+                Tümünü Temizle
+              </Button>
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-4 border-t border-slate-100 bg-white shadow-[0_-4px_10px_-4px_rgba(0,0,0,0.05)]">
-          {/* FİYAT GİZLİ DEĞİLSE TOPLAMI GÖSTER */}
+        <div className="px-6 py-4 border-t border-border bg-card shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
           {!hidePrices && (
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-slate-600 font-semibold">Toplam</span>
-              <span className="text-2xl font-extrabold text-ocean">{total.toLocaleString('tr-TR')} TL</span>
+            <div className="flex items-center justify-between mb-3 px-1">
+              <span className="text-muted-foreground font-semibold text-sm">Toplam Tutar</span>
+              <span className="text-2xl font-black text-primary">{(total ?? 0).toLocaleString('tr-TR')} TL</span>
             </div>
           )}
           
-          <button
+          <Button
             onClick={onSend}
             disabled={!canSend || sending}
-            className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold py-4 rounded-xl transition-all text-lg"
+            size="lg"
+            className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-secondary disabled:text-muted-foreground text-white font-bold h-14 rounded-2xl transition-all text-base shadow-lg shadow-emerald-600/20 active:scale-[0.98]"
           >
             <Send className="w-5 h-5" />
             {sending ? 'Gönderiliyor...' : 'Mutfağa Gönder'}
-          </button>
+          </Button>
           
-          {!canSend && cart.length > 0 && (
-            <p className="text-center text-xs text-amber-600 mt-2 font-medium">Lütfen masa numarası girin</p>
+          {!canSend && safeCart.length > 0 && (
+            <p className="text-center text-xs text-amber-500 mt-2 font-bold animate-pulse">Lütfen masa seçin veya yazın</p>
           )}
         </div>
       </div>
