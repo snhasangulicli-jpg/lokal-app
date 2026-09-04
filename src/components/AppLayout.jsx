@@ -12,13 +12,13 @@ export default function AppLayout({ children }) {
 
   // Her rol sadece kendi sayfasını görür. 
   // Profil sayfasını "herkes", Yönetim sayfasını sadece "admin" görebilir.
-  // PATRON EKLENDİ: Patron her yeri görebilir!
+  // Her rol sadece kendi sayfasını görür. Patron her yeri görür!
   const ALL_TABS = [
-    { to: "/", label: "Mutfak", icon: ChefHat, match: "/", roles: ["mutfak", "admin", "patron"] },
-    { to: "/order", label: "Garson", icon: UtensilsCrossed, match: "/order", roles: ["garson", "admin", "patron"] },
-    { to: "/cashier", label: "Kasiyer", icon: Calculator, match: "/cashier", roles: ["kasa", "admin", "patron"] },
-    { to: "/admin", label: "Yönetim", icon: ShieldCheck, match: "/admin", roles: ["admin", "patron"] },
-    { to: "/profile", label: "Profil", icon: User, match: "/profile", roles: ["garson", "mutfak", "kasa", "admin", "patron"] },
+    { to: "/", label: "Mutfak", icon: ChefHat, match: "/", roles: ["mutfak", "patron"] },
+    { to: "/order", label: "Garson", icon: UtensilsCrossed, match: "/order", roles: ["garson", "patron"] },
+    { to: "/cashier", label: "Kasiyer", icon: Calculator, match: "/cashier", roles: ["kasa", "patron"] },
+    { to: "/patron", label: "Patron", icon: ShieldCheck, match: "/patron", roles: ["patron"] },
+    { to: "/profile", label: "Profil", icon: User, match: "/profile", roles: ["garson", "mutfak", "kasa", "patron"] },
   ];
 
   // Kullanıcının rolüne göre sadece yetkisi olan sekmeleri filtrele

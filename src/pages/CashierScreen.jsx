@@ -13,8 +13,8 @@ export default function CashierScreen() {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  // YETKİ KONTROLÜ: Sadece Kasa işlem yapabilir
-  const canEdit = user?.role === 'kasa';
+  // YETKİ KONTROLÜ: Kasa, Admin ve Patron işlem yapabilir!
+  const canEdit = user?.role === 'kasa' || user?.role === 'admin' || user?.role === 'patron';
 
   const [orders, setOrders] = useState(null);
   const [search, setSearch] = useState("");
@@ -51,19 +51,18 @@ export default function CashierScreen() {
 
   const handleOpenCloseModal = (targetTable) => {
     if (!canEdit) {
-      return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Hesap kapatma işlemini sadece Kasiyer yapabilir." });
+      return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Hesap kapatma işlemini sadece Yetkililer yapabilir." });
     }
     setCloseTarget(targetTable);
   };
 
   const handleOpenEndOfDay = () => {
     if (!canEdit) {
-      return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Gün sonu raporunu sadece Kasiyer alabilir." });
+      return toast({ variant: "destructive", title: "Yetkisiz İşlem", description: "Gün sonu raporunu sadece Yetkililer alabilir." });
     }
     setEndOfDay(true);
   };
 
-  // YENİ: paidAmount parametresi eklendi
   const handleClose = async (mode, customerName, paidAmount) => {
     if (!canEdit) return;
     setProcessing(true);
@@ -71,11 +70,8 @@ export default function CashierScreen() {
       const paidAt = new Date().toISOString();
       const updatedIds = closeTarget.orderIds;
       
-      // mode "partial" (parçalı) veya "debt" ise veritabanına "debt" olarak kaydedeceğiz.
-      // mode "paid" ise "paid" kaydedeceğiz.
       const dbPaymentStatus = mode === "paid" ? "paid" : "debt";
       
-      // Toplam siparişin ne kadarının ödendiği. "paid" ise hepsi, "debt" ise 0, "partial" ise girilen tutar.
       const totalTableAmount = closeTarget.totalAmount;
       const amountToSave = mode === "paid" ? totalTableAmount : (Number(paidAmount) || 0);
 

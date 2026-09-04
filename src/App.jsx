@@ -10,29 +10,22 @@ import KitchenScreen from "@/pages/KitchenScreen";
 import OrderScreen from "@/pages/OrderScreen";
 import CashierScreen from "@/pages/CashierScreen";
 import ProfileScreen from "@/pages/ProfileScreen";
-import AdminScreen from "@/pages/AdminScreen"; // <-- YENİ EKLENDİ
+import PatronScreen from "@/pages/PatronScreen"; // <-- SADECE PATRON VAR
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
+    queries: { refetchOnWindowFocus: false, retry: 1 },
   },
 });
 
-// Sayfa değiştiğinde otomatik en üste kaydırma
 function ScrollToTop() {
   const { pathname, hash } = useLocation();
   useEffect(() => {
-    if (!hash) {
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    }
+    if (!hash) window.scrollTo({ top: 0, left: 0, behavior: "instant" });
   }, [pathname, hash]);
   return null;
 }
 
-// Dosya bulma hatasını önlemek için 404 bileşeni doğrudan buraya eklendi
 function NotFound() {
   return (
     <div className="flex h-[100dvh] flex-col items-center justify-center bg-background px-4 text-center">
@@ -45,7 +38,6 @@ function NotFound() {
   );
 }
 
-// Ana Yönlendirme Mantığı
 function AppRoutes() {
   const { isAuthenticated } = useAuth();
 
@@ -56,7 +48,7 @@ function AppRoutes() {
         <Route path="/" element={<KitchenScreen />} />
         <Route path="/order" element={<OrderScreen />} />
         <Route path="/cashier" element={<CashierScreen />} />
-        <Route path="/admin" element={<AdminScreen />} /> {/* <-- YENİ EKLENDİ */}
+        <Route path="/patron" element={<PatronScreen />} /> {/* <-- YENİ PATRON YOLU */}
         <Route path="/profile" element={<ProfileScreen />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
