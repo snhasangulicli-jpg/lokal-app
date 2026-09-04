@@ -12,12 +12,13 @@ export default function AppLayout({ children }) {
 
   // Her rol sadece kendi sayfasını görür. 
   // Profil sayfasını "herkes", Yönetim sayfasını sadece "admin" görebilir.
+  // PATRON EKLENDİ: Patron her yeri görebilir!
   const ALL_TABS = [
-    { to: "/", label: "Mutfak", icon: ChefHat, match: "/", roles: ["mutfak", "admin"] },
-    { to: "/order", label: "Garson", icon: UtensilsCrossed, match: "/order", roles: ["garson", "admin"] },
-    { to: "/cashier", label: "Kasiyer", icon: Calculator, match: "/cashier", roles: ["kasa", "admin"] },
-    { to: "/admin", label: "Yönetim", icon: ShieldCheck, match: "/admin", roles: ["admin"] },
-    { to: "/profile", label: "Profil", icon: User, match: "/profile", roles: ["garson", "mutfak", "kasa", "admin"] },
+    { to: "/", label: "Mutfak", icon: ChefHat, match: "/", roles: ["mutfak", "admin", "patron"] },
+    { to: "/order", label: "Garson", icon: UtensilsCrossed, match: "/order", roles: ["garson", "admin", "patron"] },
+    { to: "/cashier", label: "Kasiyer", icon: Calculator, match: "/cashier", roles: ["kasa", "admin", "patron"] },
+    { to: "/admin", label: "Yönetim", icon: ShieldCheck, match: "/admin", roles: ["admin", "patron"] },
+    { to: "/profile", label: "Profil", icon: User, match: "/profile", roles: ["garson", "mutfak", "kasa", "admin", "patron"] },
   ];
 
   // Kullanıcının rolüne göre sadece yetkisi olan sekmeleri filtrele
@@ -29,7 +30,7 @@ export default function AppLayout({ children }) {
       <header className="hidden select-none border-b border-border bg-card/80 backdrop-blur supports-[backdrop-filter]:bg-card/60 md:flex">
         <div className="flex h-16 w-full items-center justify-between px-4 pt-[env(safe-area-inset-top)] md:px-6">
           
-          {/* Logo (Eski koddaki Link'i kaldırdık ki yetkisiz sayfalara tıklayarak gidilemesin) */}
+          {/* Logo */}
           <div className="flex items-center gap-2.5">
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
               <Anchor className="h-5 w-5" />

@@ -50,7 +50,7 @@ export default function OrderScreen() {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const canEdit = user?.role === 'garson' || user?.role === 'kasa' || user?.role === 'admin';
+  const canEdit = user?.role === 'garson' || user?.role === 'kasa' || user?.role === 'admin' || user?.role === 'patron';
   const hidePrices = user?.role === 'garson'; 
 
   const [menu, setMenu] = useState(null);

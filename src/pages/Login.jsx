@@ -15,14 +15,23 @@ export default function Login() {
   const [error, setError] = useState("");
   const [logoClicks, setLogoClicks] = useState(0);
 
-  // Logoya 3 kere tıklama kontrolü (Gizli Admin Modu)
+  // Logoya 5 kere tıklama kontrolü (Gizli Patron Modu)
   const handleLogoClick = () => {
     setLogoClicks((prev) => prev + 1);
   };
 
-  const adminUnlocked = logoClicks >= 3;
+  const adminUnlocked = logoClicks >= 5;
 
-  // Şifre 4 haneye ulaştığında otomatik kontrol et
+  // Patron modu açıldığında ismi otomatik "Patron" yap
+  useEffect(() => {
+    if (adminUnlocked) {
+      setName("Patron");
+      setPin("");
+      setError("");
+    }
+  }, [adminUnlocked]);
+
+  // Şifre 4 haneye ulaştığında otomatik kontrol et (Artık herkes için 4 hane)
   useEffect(() => {
     if (pin.length === 4) {
       handleLogin(pin);
@@ -40,19 +49,20 @@ export default function Login() {
     let role = null;
     let redirectPath = "/";
 
-    // Şifreye Göre Rol Belirleme
-    if (enteredPin === "0000") {
+    // Şifreye ve Kilide Göre Rol Belirleme
+    if (enteredPin === "0000" && !adminUnlocked) {
       role = "garson";
       redirectPath = "/order";
-    } else if (enteredPin === "1111") {
+    } else if (enteredPin === "1111" && !adminUnlocked) {
       role = "mutfak";
       redirectPath = "/";
-    } else if (enteredPin === "7991") {
+    } else if (enteredPin === "7991" && !adminUnlocked) {
       role = "kasa";
       redirectPath = "/cashier";
-    } else if (enteredPin === "1571" && adminUnlocked) {
-      role = "admin";
-      redirectPath = "/admin";
+    } else if (enteredPin === "1111" && adminUnlocked) {
+      // PATRON GİRİŞİ: Kilit açıksa 1111 mutfak yerine patronu açar!
+      role = "patron";
+      redirectPath = "/admin"; 
     }
 
     // Doğru şifre ise giriş yap, değilse hata ver
@@ -89,7 +99,7 @@ export default function Login() {
           <div 
             onClick={handleLogoClick}
             className={cn(
-              "mb-4 flex h-16 w-16 cursor-pointer items-center justify-center rounded-2xl shadow-lg transition-transform active:scale-95",
+              "mb-4 flex h-16 w-16 cursor-pointer items-center justify-center rounded-2xl shadow-lg transition-transform active:scale-95 select-none",
               adminUnlocked 
                 ? "bg-amber-500 text-white shadow-amber-500/20" 
                 : "bg-primary text-primary-foreground shadow-primary/20"
@@ -104,22 +114,34 @@ export default function Login() {
         </div>
 
         <div className="space-y-6">
-          {/* İSİM GİRİŞİ */}
-          <div className="space-y-2">
-            <Label htmlFor="name" className="text-foreground">Ad Soyad</Label>
-            <Input
-              id="name"
-              autoFocus
-              autoComplete="off"
-              placeholder="Örn: Barış"
-              value={name}
-              onChange={(e) => {
-                setName(e.target.value);
-                setError("");
-              }}
-              className="h-12 text-base bg-background"
-            />
-          </div>
+          
+          {/* İSİM GİRİŞİ VEYA PATRON BUTONU */}
+          {adminUnlocked ? (
+            <div className="flex flex-col gap-1.5 animate-in zoom-in duration-300">
+              <Label className="text-amber-500 font-bold uppercase tracking-wider text-[10px] text-center">
+                Yönetici Kilidi Açıldı
+              </Label>
+              <div className="flex h-12 w-full items-center justify-center rounded-xl bg-amber-500 text-lg font-black tracking-widest text-white shadow-lg shadow-amber-500/30">
+                PATRON
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-foreground">Ad Soyad</Label>
+              <Input
+                id="name"
+                autoFocus
+                autoComplete="off"
+                placeholder="Örn: Barış"
+                value={name}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setError("");
+                }}
+                className="h-12 text-base bg-background"
+              />
+            </div>
+          )}
 
           {/* PIN GÖSTERGESİ */}
           <div className="pt-2">
@@ -132,7 +154,9 @@ export default function Login() {
                     pin.length > i 
                       ? error 
                         ? "bg-red-500 scale-110 shadow-[0_0_10px_rgba(239,68,68,0.5)]" 
-                        : "bg-primary scale-110 shadow-[0_0_10px_rgba(var(--primary),0.5)]" 
+                        : adminUnlocked
+                          ? "bg-amber-500 scale-110 shadow-[0_0_10px_rgba(245,158,11,0.5)]"
+                          : "bg-primary scale-110 shadow-[0_0_10px_rgba(var(--primary),0.5)]" 
                       : "bg-muted"
                   )}
                 />
@@ -156,7 +180,12 @@ export default function Login() {
                 key={num}
                 type="button"
                 onClick={() => handlePadClick(num.toString())}
-                className="flex h-14 items-center justify-center rounded-2xl bg-secondary text-xl font-semibold text-foreground transition-colors hover:bg-secondary/80 active:bg-primary active:text-primary-foreground sm:h-16 sm:text-2xl"
+                className={cn(
+                  "flex h-14 items-center justify-center rounded-2xl text-xl font-semibold text-foreground transition-colors sm:h-16 sm:text-2xl",
+                  adminUnlocked 
+                    ? "bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500 active:text-white"
+                    : "bg-secondary hover:bg-secondary/80 active:bg-primary active:text-primary-foreground"
+                )}
               >
                 {num}
               </button>
@@ -165,7 +194,12 @@ export default function Login() {
             <button
               type="button"
               onClick={() => handlePadClick("0")}
-              className="flex h-14 items-center justify-center rounded-2xl bg-secondary text-xl font-semibold text-foreground transition-colors hover:bg-secondary/80 active:bg-primary active:text-primary-foreground sm:h-16 sm:text-2xl"
+              className={cn(
+                "flex h-14 items-center justify-center rounded-2xl text-xl font-semibold text-foreground transition-colors sm:h-16 sm:text-2xl",
+                adminUnlocked 
+                  ? "bg-amber-500/10 hover:bg-amber-500/20 active:bg-amber-500 active:text-white"
+                  : "bg-secondary hover:bg-secondary/80 active:bg-primary active:text-primary-foreground"
+              )}
             >
               0
             </button>

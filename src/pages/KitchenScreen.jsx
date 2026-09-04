@@ -13,7 +13,7 @@ export default function KitchenScreen() {
   const { toast } = useToast();
   const { user } = useAuth();
   
-  const canEdit = user?.role === 'mutfak' || user?.role === 'kasa';
+  const canEdit = user?.role === 'mutfak' || user?.role === 'kasa' || user?.role === 'patron';
 
   const [orders, setOrders] = useState(null);
   const [menu, setMenu] = useState([]);
