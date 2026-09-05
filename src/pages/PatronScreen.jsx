@@ -135,10 +135,10 @@ export default function PatronScreen() {
 
   return (
     <AppLayout>
-      <div className="flex h-full flex-col p-4 md:p-6 mx-auto max-w-6xl">
+      <div className="flex h-full flex-col p-4 md:p-6 mx-auto max-w-6xl w-full overflow-hidden">
         
-        {/* DÜZELTİLMİŞ PATRON SEKMELERİ (Ezilmeyi engelleyen flex-shrink-0 ve boşluk eklendi) */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-4 scrollbar-none border-b border-border">
+        {/* PATRON SEKMELERİ - flex-none ile ezilmeyi %100 engelledik */}
+        <div className="flex-none flex gap-2 mb-4 overflow-x-auto pb-3 scrollbar-none border-b border-border">
           <Button variant={activeTab === "menu" ? "default" : "outline"} onClick={() => setActiveTab("menu")} className="rounded-xl h-12 flex-shrink-0 whitespace-nowrap">
             <Utensils className="mr-2 w-4 h-4" /> Menü Yönetimi
           </Button>
@@ -152,8 +152,9 @@ export default function PatronScreen() {
 
         {/* 1. SEKME: MENÜ YÖNETİMİ */}
         {activeTab === "menu" && (
-          <div className="flex-1 flex flex-col h-full animate-in fade-in">
-            <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">
+          <div className="flex-1 flex flex-col min-h-0 animate-in fade-in">
+            {/* ARAMA VE BUTONLAR - flex-none ile ezilmesi yasaklandı */}
+            <div className="flex-none flex flex-col md:flex-row justify-between gap-3 mb-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input placeholder="Ürün ara..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="pl-9 h-11 rounded-xl" />
@@ -166,8 +167,9 @@ export default function PatronScreen() {
               </div>
             </div>
 
-            <div className="bg-card border border-border rounded-xl overflow-hidden flex-1 flex flex-col shadow-sm">
-              <div className="overflow-y-auto flex-1 p-2">
+            {/* ÜRÜN LİSTESİ - Kendi içinde scroll olacak */}
+            <div className="flex-1 bg-card border border-border rounded-xl flex flex-col shadow-sm min-h-0 overflow-hidden">
+              <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
                 {loading ? ( <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin text-muted-foreground" /></div> ) 
                 : filteredItems.map(item => (
                   <div key={item.id} className="grid grid-cols-12 gap-3 p-4 border-b border-border items-center hover:bg-muted/20">
@@ -189,9 +191,9 @@ export default function PatronScreen() {
           </div>
         )}
 
-        {/* 2. SEKME: GÜN SONU (OTOMATİK GECE 05:00) */}
+        {/* 2. SEKME: GÜN SONU */}
         {activeTab === "reports" && (
-          <div className="animate-in fade-in space-y-4">
+          <div className="flex-1 overflow-y-auto animate-in fade-in space-y-4 pb-10 pr-2 scrollbar-thin">
             <h2 className="text-xl font-bold">Gün Sonu Raporları</h2>
             <p className="text-sm text-muted-foreground mb-4">Sistem sabah 05:00'e kadar olan satışları otomatik gruplar.</p>
             {loadingReports ? <Loader2 className="animate-spin text-primary" /> : (
@@ -210,7 +212,7 @@ export default function PatronScreen() {
 
         {/* 3. SEKME: VERESİYE DEFTERİ */}
         {activeTab === "debts" && (
-          <div className="animate-in fade-in space-y-4">
+          <div className="flex-1 overflow-y-auto animate-in fade-in space-y-4 pb-10 pr-2 scrollbar-thin">
             <h2 className="text-xl font-bold">Veresiye ve Cari Defteri</h2>
             <p className="text-sm text-muted-foreground mb-4">Müşterilerin toplam borç listesi.</p>
             {loadingReports ? <Loader2 className="animate-spin text-primary" /> : (
