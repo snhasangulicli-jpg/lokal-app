@@ -3,12 +3,12 @@ import { supabase } from "@/lib/supabase";
 import { getMenuItems, migrateMenuToSupabase } from "@/lib/menuData";
 import { CATEGORIES } from "@/lib/menu"; 
 import { useToast } from "@/components/ui/use-toast";
-import { Loader2, Database, Search, Edit2, Plus, Trash2, ArrowUpDown, LayoutDashboard, Utensils, BookOpen } from "lucide-react";
+import { Loader2, Database, Search, Edit2, Plus, Trash2, LayoutDashboard, Utensils, BookOpen } from "lucide-react";
 import AppLayout from "@/components/AppLayout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 // Gece 05:00 Mantığı (İş Günü Hesaplayıcı)
 const getBusinessDate = (dateString) => {
@@ -25,9 +25,8 @@ CATEGORIES.forEach(c => {
 
 export default function PatronScreen() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("menu"); // 'menu', 'reports', 'debts'
+  const [activeTab, setActiveTab] = useState("menu"); 
   
-  // Menü State'leri
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [migrating, setMigrating] = useState(false);
@@ -37,7 +36,6 @@ export default function PatronScreen() {
   const defaultItem = { id: null, name: "", category: CATEGORY_OPTIONS[0]?.id || "", price: "", stock: "", sort_order: 0, isSoldOut: false, isSeasonalPriceOnRequest: false, hasVariations: false, variations: [] };
   const [currentItem, setCurrentItem] = useState(defaultItem);
 
-  // Rapor State'leri
   const [eodReports, setEodReports] = useState([]);
   const [debtsList, setDebtsList] = useState([]);
   const [loadingReports, setLoadingReports] = useState(false);
@@ -55,7 +53,6 @@ export default function PatronScreen() {
       const { data: allOrders, error } = await supabase.from('orders').select('*').neq('status', 'cancelled');
       if (error) throw error;
 
-      // 1. Cari/Veresiye Hesaplaması
       const debtMap = {};
       allOrders.filter(o => o.paymentStatus === 'debt').forEach(o => {
         const name = o.customerName || 'Bilinmeyen';
@@ -68,15 +65,12 @@ export default function PatronScreen() {
       });
       setDebtsList(Object.values(debtMap).sort((a,b) => b.totalDebt - a.totalDebt));
 
-      // 2. Gece 05:00 Gün Sonu (EOD) Otomatik Hesaplaması
       const eodMap = {};
       allOrders.filter(o => o.paymentStatus === 'paid' || o.paymentStatus === 'debt').forEach(o => {
         const bDate = getBusinessDate(o.created_date);
         if (!eodMap[bDate]) eodMap[bDate] = { date: bDate, revenue: 0, orderCount: 0 };
-        
         if (o.paymentStatus === 'paid') eodMap[bDate].revenue += o.totalAmount;
         else if (o.paymentStatus === 'debt') eodMap[bDate].revenue += (o.paid_amount || 0); 
-        
         eodMap[bDate].orderCount += 1;
       });
       setEodReports(Object.values(eodMap).sort((a,b) => new Date(b.date) - new Date(a.date)));
@@ -93,7 +87,6 @@ export default function PatronScreen() {
     else loadReportsData();
   }, [activeTab]);
 
-  // --- SİZİN MENÜ DÜZENLEME FONKSİYONLARINIZ (Eksiksiz Korundu) ---
   const openAddModal = () => { setModalMode("add"); setCurrentItem(defaultItem); setIsModalOpen(true); };
   const openEditModal = (item) => { setModalMode("edit"); setCurrentItem({...item, stock: item.stock ?? "", sort_order: item.sort_order || 0}); setIsModalOpen(true); };
   const handleAddVariation = () => setCurrentItem(p => ({ ...p, hasVariations: true, variations: [...(p.variations || []), { label: "", price: 0 }] }));
@@ -144,20 +137,20 @@ export default function PatronScreen() {
     <AppLayout>
       <div className="flex h-full flex-col p-4 md:p-6 mx-auto max-w-6xl">
         
-        {/* PATRON SEKMELERİ */}
-        <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
-          <Button variant={activeTab === "menu" ? "default" : "outline"} onClick={() => setActiveTab("menu")} className="rounded-xl h-12">
+        {/* DÜZELTİLMİŞ PATRON SEKMELERİ (Ezilmeyi engelleyen flex-shrink-0 ve boşluk eklendi) */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-4 scrollbar-none border-b border-border">
+          <Button variant={activeTab === "menu" ? "default" : "outline"} onClick={() => setActiveTab("menu")} className="rounded-xl h-12 flex-shrink-0 whitespace-nowrap">
             <Utensils className="mr-2 w-4 h-4" /> Menü Yönetimi
           </Button>
-          <Button variant={activeTab === "reports" ? "default" : "outline"} onClick={() => setActiveTab("reports")} className="rounded-xl h-12">
+          <Button variant={activeTab === "reports" ? "default" : "outline"} onClick={() => setActiveTab("reports")} className="rounded-xl h-12 flex-shrink-0 whitespace-nowrap">
             <LayoutDashboard className="mr-2 w-4 h-4" /> Otomatik Gün Sonu
           </Button>
-          <Button variant={activeTab === "debts" ? "default" : "outline"} onClick={() => setActiveTab("debts")} className="rounded-xl h-12">
+          <Button variant={activeTab === "debts" ? "default" : "outline"} onClick={() => setActiveTab("debts")} className="rounded-xl h-12 flex-shrink-0 whitespace-nowrap">
             <BookOpen className="mr-2 w-4 h-4" /> Veresiye Defteri
           </Button>
         </div>
 
-        {/* 1. SEKME: MENÜ YÖNETİMİ (Sizin Kodunuz) */}
+        {/* 1. SEKME: MENÜ YÖNETİMİ */}
         {activeTab === "menu" && (
           <div className="flex-1 flex flex-col h-full animate-in fade-in">
             <div className="flex flex-col md:flex-row justify-between gap-4 mb-4">
@@ -239,7 +232,6 @@ export default function PatronScreen() {
 
       </div>
 
-      {/* SİZİN MENÜ DÜZENLEME MODALINIZ (Aynen Bırakıldı, Kısaltıldı) */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-lg bg-card max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>{modalMode === "add" ? "Yeni Ürün" : "Düzenle"}</DialogTitle></DialogHeader>

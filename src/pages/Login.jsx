@@ -15,14 +15,12 @@ export default function Login() {
   const [error, setError] = useState("");
   const [logoClicks, setLogoClicks] = useState(0);
 
-  // Logoya 5 kere tıklama kontrolü (Gizli Patron Modu)
   const handleLogoClick = () => {
     setLogoClicks((prev) => prev + 1);
   };
 
   const adminUnlocked = logoClicks >= 5;
 
-  // Patron modu açıldığında ismi otomatik "Patron" yap
   useEffect(() => {
     if (adminUnlocked) {
       setName("Patron");
@@ -31,7 +29,6 @@ export default function Login() {
     }
   }, [adminUnlocked]);
 
-  // Şifre 4 haneye ulaştığında otomatik kontrol et (Artık herkes için 4 hane)
   useEffect(() => {
     if (pin.length === 4) {
       handleLogin(pin);
@@ -49,7 +46,6 @@ export default function Login() {
     let role = null;
     let redirectPath = "/";
 
-    // Şifreye ve Kilide Göre Rol Belirleme
     if (enteredPin === "0000" && !adminUnlocked) {
       role = "garson";
       redirectPath = "/order";
@@ -60,12 +56,10 @@ export default function Login() {
       role = "kasa";
       redirectPath = "/cashier";
     } else if (enteredPin === "1111" && adminUnlocked) {
-      // PATRON GİRİŞİ: Kilit açıksa 1111 mutfak yerine patronu açar!
       role = "patron";
-      redirectPath = "/admin"; 
+      redirectPath = "/patron"; // DÜZELTİLDİ: Artık 404 vermeyecek, direkt /patron açılacak.
     }
 
-    // Doğru şifre ise giriş yap, değilse hata ver
     if (role) {
       login({ name: name.trim(), role: role });
       setTimeout(() => navigate(redirectPath, { replace: true }), 150);
@@ -94,7 +88,6 @@ export default function Login() {
     <div className="flex min-h-[100dvh] flex-col items-center justify-center bg-background px-5 py-10">
       <div className="w-full max-w-sm rounded-3xl border border-border bg-card p-6 shadow-xl sm:p-8">
         
-        {/* LOGO (Gizli Buton) */}
         <div className="mb-6 flex flex-col items-center text-center">
           <div 
             onClick={handleLogoClick}
@@ -114,8 +107,6 @@ export default function Login() {
         </div>
 
         <div className="space-y-6">
-          
-          {/* İSİM GİRİŞİ VEYA PATRON BUTONU */}
           {adminUnlocked ? (
             <div className="flex flex-col gap-1.5 animate-in zoom-in duration-300">
               <Label className="text-amber-500 font-bold uppercase tracking-wider text-[10px] text-center">
@@ -143,7 +134,6 @@ export default function Login() {
             </div>
           )}
 
-          {/* PIN GÖSTERGESİ */}
           <div className="pt-2">
             <div className={cn("flex justify-center gap-4", error === "Hatalı Şifre" && "animate-shake")}>
               {[0, 1, 2, 3].map((i) => (
@@ -163,7 +153,6 @@ export default function Login() {
               ))}
             </div>
             
-            {/* HATA MESAJI */}
             <div className="mt-4 flex h-5 items-center justify-center">
               {error && (
                 <span className="flex items-center gap-1.5 text-sm font-medium text-red-500">
@@ -173,7 +162,6 @@ export default function Login() {
             </div>
           </div>
 
-          {/* NUMPAD (TUŞ TAKIMI) */}
           <div className="grid grid-cols-3 gap-3 sm:gap-4">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
               <button
@@ -212,7 +200,6 @@ export default function Login() {
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );
