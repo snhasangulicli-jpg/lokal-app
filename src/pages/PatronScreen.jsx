@@ -10,11 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-// Gece 05:00 Mantığı (İş Günü Hesaplayıcı)
-const getBusinessDate = (dateString) => {
-  const d = new Date(dateString);
-  d.setHours(d.getHours() - 5); 
-  return d.toISOString().split('T')[0];
+// Gece 05:00 Mantığı (Kıbrıs / Yerel Saate Göre)
+const getBusinessDate = (dateInput) => {
+  const d = new Date(dateInput || new Date());
+  d.setHours(d.getHours() - 5);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 const CATEGORY_OPTIONS = [];
@@ -25,7 +28,7 @@ CATEGORIES.forEach(c => {
 
 export default function PatronScreen() {
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("menu"); 
+  const [activeTab, setActiveTab] = useState("reports"); 
   
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -53,6 +56,7 @@ export default function PatronScreen() {
       const { data: allOrders, error } = await supabase.from('orders').select('*').neq('status', 'cancelled');
       if (error) throw error;
 
+      // 1. CARİ HESAPLAR
       const debtMap = {};
       allOrders.filter(o => o.paymentStatus === 'debt').forEach(o => {
         const name = o.customerName || 'Bilinmeyen';
@@ -65,15 +69,36 @@ export default function PatronScreen() {
       });
       setDebtsList(Object.values(debtMap).sort((a,b) => b.totalDebt - a.totalDebt));
 
-      const eodMap = {};
-      allOrders.filter(o => o.paymentStatus === 'paid' || o.paymentStatus === 'debt').forEach(o => {
-        const bDate = getBusinessDate(o.created_date);
-        if (!eodMap[bDate]) eodMap[bDate] = { date: bDate, revenue: 0, orderCount: 0 };
-        if (o.paymentStatus === 'paid') eodMap[bDate].revenue += o.totalAmount;
-        else if (o.paymentStatus === 'debt') eodMap[bDate].revenue += (o.paid_amount || 0); 
-        eodMap[bDate].orderCount += 1;
-      });
-      setEodReports(Object.values(eodMap).sort((a,b) => new Date(b.date) - new Date(a.date)));
+      // 2. GEÇMİŞ GÜN SONLARI (Z Raporu Arşivi)
+      const { data: savedReports } = await supabase.from('eod_reports').select('*').order('business_date', { ascending: false });
+      const combinedReports = [...(savedReports || [])];
+
+      // 3. BUGÜNÜN CANLI SATIŞLARI (Kasiyer Z raporu almasa bile anlık takip için)
+      const todayBusinessDate = getBusinessDate(new Date());
+      const todayLiveOrders = allOrders.filter(o => o.paymentStatus && getBusinessDate(o.paidAt || o.created_date) === todayBusinessDate);
+      
+      const todayLiveRevenue = todayLiveOrders.reduce((s, o) => {
+        if(o.paymentStatus === 'paid') return s + o.totalAmount;
+        if(o.paymentStatus === 'debt') return s + (Number(o.paid_amount) || 0);
+        return s;
+      }, 0);
+
+      const todayIndex = combinedReports.findIndex(r => r.business_date === todayBusinessDate);
+      
+      // Eğer Kasiyer bugün Z Raporu almışsa kilitliyi güncelle, almamışsa Canlı rozetiyle en başa koy!
+      if (todayIndex >= 0) {
+        combinedReports[todayIndex].total_revenue = todayLiveRevenue;
+        combinedReports[todayIndex].orderCount = todayLiveOrders.length;
+      } else if (todayLiveRevenue > 0) {
+        combinedReports.unshift({
+          business_date: todayBusinessDate,
+          total_revenue: todayLiveRevenue,
+          orderCount: todayLiveOrders.length,
+          isLive: true
+        });
+      }
+
+      setEodReports(combinedReports);
 
     } catch (e) {
       console.error(e);
@@ -137,23 +162,20 @@ export default function PatronScreen() {
     <AppLayout>
       <div className="flex h-full flex-col p-4 md:p-6 mx-auto max-w-6xl w-full overflow-hidden">
         
-        {/* PATRON SEKMELERİ - flex-none ile ezilmeyi %100 engelledik */}
         <div className="flex-none flex gap-2 mb-4 overflow-x-auto pb-3 scrollbar-none border-b border-border">
-          <Button variant={activeTab === "menu" ? "default" : "outline"} onClick={() => setActiveTab("menu")} className="rounded-xl h-12 flex-shrink-0 whitespace-nowrap">
-            <Utensils className="mr-2 w-4 h-4" /> Menü Yönetimi
-          </Button>
           <Button variant={activeTab === "reports" ? "default" : "outline"} onClick={() => setActiveTab("reports")} className="rounded-xl h-12 flex-shrink-0 whitespace-nowrap">
             <LayoutDashboard className="mr-2 w-4 h-4" /> Otomatik Gün Sonu
           </Button>
           <Button variant={activeTab === "debts" ? "default" : "outline"} onClick={() => setActiveTab("debts")} className="rounded-xl h-12 flex-shrink-0 whitespace-nowrap">
             <BookOpen className="mr-2 w-4 h-4" /> Veresiye Defteri
           </Button>
+          <Button variant={activeTab === "menu" ? "default" : "outline"} onClick={() => setActiveTab("menu")} className="rounded-xl h-12 flex-shrink-0 whitespace-nowrap">
+            <Utensils className="mr-2 w-4 h-4" /> Menü Yönetimi
+          </Button>
         </div>
 
-        {/* 1. SEKME: MENÜ YÖNETİMİ */}
         {activeTab === "menu" && (
           <div className="flex-1 flex flex-col min-h-0 animate-in fade-in">
-            {/* ARAMA VE BUTONLAR - flex-none ile ezilmesi yasaklandı */}
             <div className="flex-none flex flex-col md:flex-row justify-between gap-3 mb-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -167,7 +189,6 @@ export default function PatronScreen() {
               </div>
             </div>
 
-            {/* ÜRÜN LİSTESİ - Kendi içinde scroll olacak */}
             <div className="flex-1 bg-card border border-border rounded-xl flex flex-col shadow-sm min-h-0 overflow-hidden">
               <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
                 {loading ? ( <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin text-muted-foreground" /></div> ) 
@@ -191,18 +212,30 @@ export default function PatronScreen() {
           </div>
         )}
 
-        {/* 2. SEKME: GÜN SONU */}
         {activeTab === "reports" && (
           <div className="flex-1 overflow-y-auto animate-in fade-in space-y-4 pb-10 pr-2 scrollbar-thin">
-            <h2 className="text-xl font-bold">Gün Sonu Raporları</h2>
-            <p className="text-sm text-muted-foreground mb-4">Sistem sabah 05:00'e kadar olan satışları otomatik gruplar.</p>
+            <h2 className="text-xl font-bold">Gün Sonu Ciro Raporları</h2>
+            <p className="text-sm text-muted-foreground mb-4">Mühürlenmiş Z raporları geçmişe dönük burada saklanır.</p>
             {loadingReports ? <Loader2 className="animate-spin text-primary" /> : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {eodReports.map((r, idx) => (
-                  <div key={idx} className="bg-card border border-border rounded-2xl p-5 shadow-sm">
-                    <p className="text-sm text-muted-foreground font-bold">{new Date(r.date).toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                    <p className="text-3xl font-black text-primary mt-2">{r.revenue.toLocaleString('tr-TR')} TL</p>
-                    <p className="text-xs text-muted-foreground mt-2">{r.orderCount} masaya hizmet verildi.</p>
+                {eodReports.length === 0 ? <p className="text-muted-foreground">Kayıtlı rapor yok.</p> :
+                  eodReports.map((r, idx) => (
+                  <div key={idx} className="bg-card border border-border rounded-2xl p-5 shadow-sm relative overflow-hidden">
+                    
+                    {/* AKILLI ROZET (Z RAPORU MU CANLI MI?) */}
+                    {r.isLive ? (
+                      <div className="absolute top-0 right-0 bg-emerald-500 text-white text-[10px] uppercase tracking-wider font-bold px-3 py-1 rounded-bl-xl shadow-sm animate-pulse">
+                        Canlı Satış
+                      </div>
+                    ) : (
+                      <div className="absolute top-0 right-0 bg-amber-500 text-white text-[10px] uppercase tracking-wider font-bold px-3 py-1 rounded-bl-xl shadow-sm">
+                        Kilitli (Z Raporu)
+                      </div>
+                    )}
+
+                    <p className="text-sm text-muted-foreground font-bold">{new Date(r.business_date).toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                    <p className="text-3xl font-black text-primary mt-2">{(r.total_revenue || 0).toLocaleString('tr-TR')} TL</p>
+                    <p className="text-xs text-muted-foreground mt-2">{r.orderCount || 'Belirtilmedi'} masaya hizmet verildi.</p>
                   </div>
                 ))}
               </div>
@@ -210,11 +243,10 @@ export default function PatronScreen() {
           </div>
         )}
 
-        {/* 3. SEKME: VERESİYE DEFTERİ */}
         {activeTab === "debts" && (
           <div className="flex-1 overflow-y-auto animate-in fade-in space-y-4 pb-10 pr-2 scrollbar-thin">
             <h2 className="text-xl font-bold">Veresiye ve Cari Defteri</h2>
-            <p className="text-sm text-muted-foreground mb-4">Müşterilerin toplam borç listesi.</p>
+            <p className="text-sm text-muted-foreground mb-4">Müşterilerin ödenmemiş toplam borç listesi.</p>
             {loadingReports ? <Loader2 className="animate-spin text-primary" /> : (
               <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm divide-y divide-border">
                 {debtsList.length === 0 ? <p className="p-6 text-center text-muted-foreground">Aktif borçlu müşteri bulunmuyor.</p> :
